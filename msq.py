@@ -53,7 +53,7 @@ for i in range(IMG_SIZE-1):
 plt.show()'''
 
 class Terrainer(arcade.Window):
-    def __init__(self,WIDTH=240,HEIGHT=180,FPS=60,PIX = 256, SIZE = 8):
+    def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, SIZE = 8, SPEED=1):
         super().__init__(WIDTH, HEIGHT, "RGB Animation", update_rate=1/FPS,resizable=True)
         self.h = HEIGHT
         self.w = WIDTH
@@ -65,6 +65,7 @@ class Terrainer(arcade.Window):
         self.bh = None
         self.bw = None
         self.cmouse=[0,0,0]
+        self.sp = SPEED
     def on_resize(self,width,height):
         self.w = width
         self.h = height
@@ -92,9 +93,9 @@ class Terrainer(arcade.Window):
                 k = self.cmouse[0]
                 l = self.cmouse[1]
                 if self.cmouse[2] == 1:
-                    self.grid[k][l] += delta
+                    self.grid[k][l] -= delta*self.sp
                 if self.cmouse[2] == 2:
-                    self.grid[k][l] -= delta
+                    self.grid[k][l] += delta*self.sp
                 for (i,j) in [(k-1,l-1),(k,l-1),(k-1,l),(k,l)]:
                     try:
                         self.lines[i][j] = ms(0,(self.grid[i][j],self.grid[i+1][j],self.grid[i][j+1],self.grid[i+1][j+1]),[i,j])
@@ -102,16 +103,19 @@ class Terrainer(arcade.Window):
                         0
             except IndexError:
                 0
-    def on_mouse_press(self,x,y,button,modifiers):
+    def on_mouse_press(self,x,y,buttons,modifiers):
         ux = (x-self.bw)/self.sc
         uy = (y-self.bh)/self.sc
-        print(modifiers == 0)
+        self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
+    def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
+        ux = (x-self.bw)/self.sc
+        uy = (y-self.bh)/self.sc
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
     def on_mouse_release(self,x,y,button,modifiers):
         self.cmouse = [0,0,0]
 
 def main():
-    window = Terrainer(PIX=16,SIZE=4)
+    window = Terrainer(PIX=64)
     window.setup()
     arcade.run()
 
