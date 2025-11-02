@@ -57,6 +57,8 @@ sc = 16
 #Default game seeds
 r5 = rng(seed=4)
 s5 = Simplex(2,r5,"2dnoise")
+r6 = rng(seed=5)
+s6 = Simplex(2,r6,"2dnoise")
 
 '''grid = [[s5([i*sc/IMG_SIZE,j*sc/IMG_SIZE]) for j in range(IMG_SIZE)] for i in range(IMG_SIZE)]
 for i in range(IMG_SIZE-1):
@@ -69,12 +71,12 @@ plt.show()'''
 
 #Loading a terrain value, will get more complicated
 def load_grid(x,y,w,noise):
-    return [min(1,max(-1,noise((x/w,y/w))*5)),0]
+    return [min(1,max(-1,noise[0]((x/w,y/w))*5)),0 if noise[1]((x/w/3,y/w/3)) <= 0 else 1]
 
 #The game!
 class Terrainer(arcade.Window):
     colors = [(192,255,128,255),(128,80,0,255)]
-    def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, WSIZE = 32, SPEED=1,seed=s5,MSPEED=16,name="terrainer"):
+    def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, WSIZE = 32, SPEED=1,seed=[s5,s6],MSPEED=16,name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "RGB Animation", update_rate=1/FPS,resizable=True)
         #Initializing variables...
         self.h = HEIGHT
@@ -94,7 +96,7 @@ class Terrainer(arcade.Window):
         self.vel = [0,0]
         self.m = MSPEED
         self.lb = name
-        self.inv = [[1,0],[1,1],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]]
+        self.inv = [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]]
         self.invslot = 0
         self.creative = 0
         self.cthing = 0
@@ -191,11 +193,15 @@ class Terrainer(arcade.Window):
                 l = self.cmouse[1]
                 if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
                     if self.cmouse[2] == 1:
-                        self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-delta*self.sp)
+                        self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[self.invslot][0])))
+                        self.inv[self.invslot][0] += min(delta*self.sp,64-self.inv[self.invslot][0])
                     if self.cmouse[2] == 2:
-                        self.grid[(k,l)][0] = min(1, self.grid[(k,l)][0]+delta*self.sp)
+                        self.grid[(k,l)][0] = min(1, self.grid[(k,l)][0]+min(delta*self.sp,self.inv[self.invslot][0]))
+                        self.inv[self.invslot][0] -= min(delta*self.sp,self.inv[self.invslot][0])
                 elif self.grid[(k,l)][0] == -1 and self.cmouse[2] == 2:
                     self.grid[(k,l)][1] = self.inv[self.invslot][1]
+                elif self.inv[self.invslot][0] == 0 and self.cmouse[2] == 1:
+                    self.inv[self.invslot][1] = self.grid[(k,l)][1]
                 for (i,j) in [(k-1,l-1),(k,l-1),(k-1,l),(k,l)]:
                     try:
                         self.lines[(i,j)] = ms(0,(self.grid[(i,j)],self.grid[(i+1,j)],self.grid[(i,j+1)],self.grid[(i+1,j+1)]),[i,j])
