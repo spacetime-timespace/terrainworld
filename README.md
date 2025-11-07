@@ -11,8 +11,11 @@ main
 Installation instructions:
 
 1. Download noiselib.py and terrain2d.py
-2. Read LICENSE.txt if you plan to share
-3. Run terrain2d.py
+2. Download the assets: selector.png, itembox.png, Tiles.zip, and Font.zip
+3. Read LICENSE.txt if you plan to share
+4. Unzip Tiles.zip and Font.zip
+5. If you wish, change the assets (Tiles folder, Font folder, itembox.png, and selector.png) You still need to retain the size.
+6. Run terrain2d.py
 
 Version history:
 
