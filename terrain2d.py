@@ -76,8 +76,9 @@ def load_grid(x,y,w,noise):
 #The game!
 class Terrainer(arcade.Window):
     colors = [(192,255,128,255),(128,80,0,255)]
+    names = ["grass","dirt"]
     def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, WSIZE = 32, SPEED=1,seed=[s5,s6],MSPEED=16,name="terrainer"):
-        super().__init__(WIDTH, HEIGHT, "RGB Animation", update_rate=1/FPS,resizable=True)
+        super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
         #Initializing variables...
         self.h = HEIGHT
         self.w = WIDTH
@@ -103,6 +104,7 @@ class Terrainer(arcade.Window):
         self.mthing = 0
         self.mqty = 0
         self.delt = 0
+        self.st = 0
     def on_resize(self,width,height):
         #Resize handling: re-set width, height
         self.w = width
@@ -140,13 +142,18 @@ class Terrainer(arcade.Window):
             arcade.draw_sprite(z)
             if self.inv[i][0] == 0:
                 continue
-            arcade.draw_circle_filled(self.w-16,self.h/2+16*len(self.inv)-16-32*i,8,Terrainer.colors[self.inv[i][1]],0,16)
+            z = arcade.Sprite()
+            z.texture = arcade.load_texture("tiles/"+Terrainer.names[self.inv[i][1]]+".png")
+            z.scale = 1
+            z.center_x = self.w-16
+            z.center_y = self.h/2+16*len(self.inv)-16-32*i
+            arcade.draw_sprite(z)
             c = len(str(int(self.inv[i][0])))
             for j in range(len(str(int(self.inv[i][0])))):
                 x = str(int(self.inv[i][0]))[j]
-                z.texture = arcade.load_texture("tile"+x+".png")
+                z.texture = arcade.load_texture("font/tile"+x+".png")
                 z.scale = 0.5
-                z.center_x = self.w-16-c*4+4+8*j
+                z.center_x = self.w-16-c*2+2+4*j
                 z.center_y = self.h/2+16*len(self.inv)-16-32*i
                 arcade.draw_sprite(z)
         z = arcade.Sprite()
@@ -158,57 +165,94 @@ class Terrainer(arcade.Window):
             z.center_x = self.w-80
         z.center_y = self.h/2+16*len(self.inv)-16-32*self.invslot
         arcade.draw_sprite(z)
+        #Notice box
+        if self.st != 0:
+            arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, self.h/2, self.w-192, self.h-384),(128,128,128,255))
+            arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, self.h/2, self.w-384, self.h-192),(128,128,128,255))
+            arcade.draw_circle_filled(192,192,96,(128,128,128,255))
+            arcade.draw_circle_filled(self.w-192,192,96,(128,128,128,255))
+            arcade.draw_circle_filled(192,self.h-192,96,(128,128,128,255))
+            arcade.draw_circle_filled(self.w-192,self.h-192,96,(128,128,128,255))
+        if self.st == 1:
+            for i in range(12):
+                z = arcade.Sprite()
+                z.texture = arcade.load_texture("itembox.png")
+                z.scale = 4
+                z.center_x = 192
+                z.center_y = self.h/2+32*len(self.inv)-32-64*i
+                arcade.draw_sprite(z)
+                if self.inv[i][0] == 0:
+                    continue
+                z = arcade.Sprite()
+                z.texture = arcade.load_texture("tiles/"+Terrainer.names[self.inv[i][1]]+".png")
+                z.scale = 2
+                z.center_x = 192
+                z.center_y = self.h/2+32*len(self.inv)-32-64*i
+                arcade.draw_sprite(z)
+                t = "{:6} ".format("{:.3f}".format(self.inv[i][0]))
+                t += Terrainer.names[self.inv[i][1]]
+                for j in range(len(t)):
+                    if t[j] != " ":
+                        z = arcade.Sprite()
+                        z.texture = arcade.load_texture("font/tile"+t[j]+".png")
+                        z.scale = 2
+                        z.center_x = 256 + j*32
+                        z.center_y = self.h/2+32*len(self.inv)-32-64*i
+                        arcade.draw_sprite(z)
     def on_update(self,delta):
         #Loading chunks
-        if self.delt:
-            self.inv[self.invslot][0] = max(0,self.inv[self.invslot][0]-self.sp*delta)
-        if self.creative:
-            self.inv[0][0] = 64
-            self.inv[0][1] = self.cthing
-        for i in range(int(self.pos[0]//self.p)-1,int(self.pos[0]//self.p)+2):
-            for j in range(int(self.pos[1]//self.p-1),int(self.pos[1]//self.p)+2):
-                if (i,j) not in self.ch:
-                    print(str(self.lb)+" LOADING CHUNK: "+str((i,j)))
-                    self.ch.append((i,j))
-                    #Calculating terrain
-                    for k in range(self.p+1):
-                        for l in range(self.p+1):
-                            self.grid[(i*self.p+k,j*self.p+l)] = load_grid(i*self.p+k,j*self.p+l,self.z,self.n)
-                    #Initializing segments
-                    for k in range(self.p):
-                        for l in range(self.p):
-                            try:
-                                self.lines[(i*self.p+k,j*self.p+l)] = ms(0,(self.grid[(i*self.p+k,j*self.p+l)],self.grid[(i*self.p+k+1,j*self.p+l)],self.grid[(i*self.p+k,j*self.p+l+1)],self.grid[(i*self.p+k+1,j*self.p+l+1)]),[i*self.p+k,j*self.p+l])
-                            except KeyError:
-                                0
-        #Mining
-        self.pos[0]+=delta*self.m*self.vel[0]
-        self.pos[1]+=delta*self.m*self.vel[1]
-        self.cmouse[0]+=delta*self.m*self.vel[0]
-        self.cmouse[1]+=delta*self.m*self.vel[1]
-        if self.cmouse[2]!=0:
-            try:
-                #Testing for minability, mining
-                k = self.cmouse[0]
-                l = self.cmouse[1]
-                if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
-                    if self.cmouse[2] == 1:
-                        self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[self.invslot][0])))
-                        self.inv[self.invslot][0] += min(delta*self.sp,64-self.inv[self.invslot][0])
-                    if self.cmouse[2] == 2:
-                        self.grid[(k,l)][0] = min(1, self.grid[(k,l)][0]+min(delta*self.sp,self.inv[self.invslot][0]))
-                        self.inv[self.invslot][0] -= min(delta*self.sp,self.inv[self.invslot][0])
-                elif self.grid[(k,l)][0] == -1 and self.cmouse[2] == 2:
-                    self.grid[(k,l)][1] = self.inv[self.invslot][1]
-                elif self.inv[self.invslot][0] == 0 and self.cmouse[2] == 1:
-                    self.inv[self.invslot][1] = self.grid[(k,l)][1]
-                for (i,j) in [(k-1,l-1),(k,l-1),(k-1,l),(k,l)]:
-                    try:
-                        self.lines[(i,j)] = ms(0,(self.grid[(i,j)],self.grid[(i+1,j)],self.grid[(i,j+1)],self.grid[(i+1,j+1)]),[i,j])
-                    except KeyError:
-                        0
-            except KeyError:
-                0
+        if self.st == 0:
+            if self.delt:
+                self.inv[self.invslot][0] = max(0,self.inv[self.invslot][0]-self.sp*delta)
+            if self.creative:
+                self.inv[0][0] = 64
+                self.inv[0][1] = self.cthing
+            for i in range(int(self.pos[0]//self.p)-1,int(self.pos[0]//self.p)+2):
+                for j in range(int(self.pos[1]//self.p-1),int(self.pos[1]//self.p)+2):
+                    if (i,j) not in self.ch:
+                        print(str(self.lb)+" LOADING CHUNK: "+str((i,j)))
+                        self.ch.append((i,j))
+                        #Calculating terrain
+                        for k in range(self.p+1):
+                            for l in range(self.p+1):
+                                self.grid[(i*self.p+k,j*self.p+l)] = load_grid(i*self.p+k,j*self.p+l,self.z,self.n)
+                        #Initializing segments
+                        for k in range(self.p):
+                            for l in range(self.p):
+                                try:
+                                    self.lines[(i*self.p+k,j*self.p+l)] = ms(0,(self.grid[(i*self.p+k,j*self.p+l)],self.grid[(i*self.p+k+1,j*self.p+l)],self.grid[(i*self.p+k,j*self.p+l+1)],self.grid[(i*self.p+k+1,j*self.p+l+1)]),[i*self.p+k,j*self.p+l])
+                                except KeyError:
+                                    0
+            #Mining
+            self.pos[0]+=delta*self.m*self.vel[0]
+            self.pos[1]+=delta*self.m*self.vel[1]
+            self.cmouse[0]+=delta*self.m*self.vel[0]
+            self.cmouse[1]+=delta*self.m*self.vel[1]
+            if self.cmouse[2]!=0:
+                try:
+                    #Testing for minability, mining
+                    k = self.cmouse[0]
+                    l = self.cmouse[1]
+                    if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
+                        if self.cmouse[2] == 1:
+                            a = self.grid[(k,l)][0]
+                            self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[self.invslot][0])))
+                            self.inv[self.invslot][0] += a - self.grid[(k,l)][0]
+                        if self.cmouse[2] == 2:
+                            a = self.grid[(k,l)][0]
+                            self.grid[(k,l)][0] = min(1, self.grid[(k,l)][0]+min(delta*self.sp,self.inv[self.invslot][0]))
+                            self.inv[self.invslot][0] -= self.grid[(k,l)][0] - a
+                    elif self.grid[(k,l)][0] == -1 and self.cmouse[2] == 2:
+                        self.grid[(k,l)][1] = self.inv[self.invslot][1]
+                    elif self.inv[self.invslot][0] == 0 and self.cmouse[2] == 1:
+                        self.inv[self.invslot][1] = self.grid[(k,l)][1]
+                    for (i,j) in [(k-1,l-1),(k,l-1),(k-1,l),(k,l)]:
+                        try:
+                            self.lines[(i,j)] = ms(0,(self.grid[(i,j)],self.grid[(i+1,j)],self.grid[(i,j+1)],self.grid[(i+1,j+1)]),[i,j])
+                        except KeyError:
+                            0
+                except KeyError:
+                    0
     def on_mouse_press(self,x,y,buttons,modifiers):
         #Calculating click position
         ux = (x-self.bw)/self.sc+self.pos[0]
@@ -233,16 +277,23 @@ class Terrainer(arcade.Window):
         if button == arcade.key.UP:
             self.vel[1]+=1
         #Inventory stuff
-        if button == arcade.key.C:
+        if button == arcade.key.F:
             self.creative = 1 - self.creative
-        if button == arcade.key.D:
+        if button == arcade.key.S:
             self.cthing = (self.cthing - 1)%len(Terrainer.colors)
-        if button == arcade.key.E:
+        if button == arcade.key.D:
             self.cthing = (self.cthing + 1)%len(Terrainer.colors)
         if button == arcade.key.Z:
             self.delt = 1
         if button == arcade.key.X:
             self.inv[self.invslot][0] = 0
+        #2 - craft, 1 - view inventory, 0 - play
+        if button == arcade.key.C:
+            self.st = 2
+        if button == arcade.key.V:
+            self.st = 1
+        if button == arcade.key.B:
+            self.st = 0
         #Slots
         if button == arcade.key.KEY_1:
             self.invslot = 0
