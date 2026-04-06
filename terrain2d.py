@@ -21,6 +21,24 @@ msdict = {
     (0,1,1,1):([(0,2)],1),
     (1,1,1,1):([],0),
 }
+class Point:
+    def __init__(self,x,y):
+        self.x=x
+        self.y=y
+    def __add__(self,other):
+        return Point(self.x+other.x,self.y+other.y)
+    def __sub__(self,other):
+        return Point(self.x-other.x,self.y-other.y)
+    def __mul__(self,other):
+        if type(other) in [float,int]:
+            return Point(self.x*other,self.y*other)
+        else:
+            return self.x*other.x+self.y*other.y
+def cp(p,l0,l1):
+    m0=l0-p
+    m1=l1-p
+    d=m0-m1
+    p = m0-d*((m0*d)/(d*d))
 #marching squares on four verticies
 def ms(thres,v,offset):
     vces = [i[0] for i in v]
@@ -56,9 +74,9 @@ sc = 16
 
 #Default game seeds
 r5 = rng(seed=4)
-s5 = Simplex(2,r5,"2dnoise")
+s5 = Simplex(2,r5)
 r6 = rng(seed=5)
-s6 = Simplex(2,r6,"2dnoise")
+s6 = Simplex(2,r6)
 
 '''grid = [[s5([i*sc/IMG_SIZE,j*sc/IMG_SIZE]) for j in range(IMG_SIZE)] for i in range(IMG_SIZE)]
 for i in range(IMG_SIZE-1):
@@ -71,12 +89,12 @@ plt.show()'''
 
 #Loading a terrain value, will get more complicated
 def load_grid(x,y,w,noise):
-    return [min(1,max(-1,noise[0]((x/w,y/w))*5)),0 if noise[1]((x/w/3,y/w/3)) <= 0 else 1]
+    return [min(1,max(-1,noise[0]((x/w,y/w))*5)),0 if noise[1]((x/w/3,y/w/3)) <= -0.25 else (1 if noise[1]((x/w/3,y/w/3)) <= 0.25 else 2)]
 
 #The game!
 class Terrainer(arcade.Window):
-    colors = [(192,255,128,255),(128,80,0,255)]
-    names = ["grass","dirt"]
+    colors = [(192,255,128,255),(128,80,0,255),(128,128,128,255)]
+    names = ["grass","dirt","stone"]
     def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, WSIZE = 32, SPEED=1,seed=[s5,s6],MSPEED=16,name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
         #Initializing variables...
@@ -199,6 +217,10 @@ class Terrainer(arcade.Window):
                         z.center_x = 256 + j*32
                         z.center_y = self.h/2+32*len(self.inv)-32-64*i
                         arcade.draw_sprite(z)
+        #Draws character
+        arcade.draw_circle_filled(self.bw+self.p*self.sc/2,self.bh+self.p*self.sc/2,0.5*self.sc,(128,128,128,255))
+        arcade.draw_circle_filled(self.bw+self.p*self.sc/2+0.2*self.sc,self.bh+self.p*self.sc/2+0.1*self.sc,0.125*self.sc,(0,0,0,255))
+        arcade.draw_circle_filled(self.bw+self.p*self.sc/2-0.2*self.sc,self.bh+self.p*self.sc/2+0.1*self.sc,0.125*self.sc,(0,0,0,255))
     def on_update(self,delta):
         #Loading chunks
         if self.st == 0:
@@ -362,7 +384,12 @@ class Terrainer(arcade.Window):
             self.delt = 0
 def main():
     #Setting up game
-    window = Terrainer(PIX=64,WSIZE=8)
+    try:
+        n = int(input("How many pixels? "))
+    except ValueError:
+        n=64
+    n = int(max(1,min(n,256)))
+    window = Terrainer(PIX=n,WSIZE=8,SPEED=4)
     window.setup()
     arcade.run()
 
