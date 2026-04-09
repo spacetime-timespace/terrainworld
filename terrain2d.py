@@ -3,21 +3,22 @@ import arcade
 import matplotlib.pyplot as plt
 from noiselib import rng, Simplex, np
 #Every pattern in marching squares
+#Interior to the left
 msdict = {
     (0,0,0,0):([],0),
-    (1,0,0,0):([(0,2)],0),
+    (1,0,0,0):([(2,0)],0),
     (0,1,0,0):([(1,2)],1),
-    (1,1,0,0):([(0,1)],0),
+    (1,1,0,0):([(1,0)],0),
     (0,0,1,0):([(0,3)],2),
     (1,0,1,0):([(2,3)],0),
-    (0,1,1,0):([(0,4),(1,4),(2,4),(3,4)],1),
+    (0,1,1,0):([(0,4),(1,4),(4,2),(4,3)],1),
     (1,1,1,0):([(1,3)],0),
-    (0,0,0,1):([(1,3)],3),
-    (1,0,0,1):([(0,4),(1,4),(2,4),(3,4)],0),
-    (0,1,0,1):([(2,3)],1),
+    (0,0,0,1):([(3,1)],3),
+    (1,0,0,1):([(4,0),(4,1),(2,4),(3,4)],0),
+    (0,1,0,1):([(3,2)],1),
     (1,1,0,1):([(0,3)],0),
     (0,0,1,1):([(0,1)],2),
-    (1,0,1,1):([(1,2)],0),
+    (1,0,1,1):([(2,1)],0),
     (0,1,1,1):([(0,2)],1),
     (1,1,1,1):([],0),
 }
@@ -30,15 +31,46 @@ class Point:
     def __sub__(self,other):
         return Point(self.x-other.x,self.y-other.y)
     def __mul__(self,other):
-        if type(other) in [float,int]:
-            return Point(self.x*other,self.y*other)
-        else:
+        if type(other) == Point:
             return self.x*other.x+self.y*other.y
-def cp(p,l0,l1):
-    m0=l0-p
-    m1=l1-p
-    d=m0-m1
-    p = m0-d*((m0*d)/(d*d))
+        else:
+            return Point(self.x*other,self.y*other)
+    def __truediv__(self,other):
+        if other!=0:
+            return Point(self.x/(other+0.000001),self.y/(other+0.00001))
+    def __str__(self):
+        return "("+str(self.x)+","+str(self.y)+")"
+    def __repr__(self):
+        return "("+str(self.x)+","+str(self.y)+")"
+    def abs(self):
+        return (self.x**2+self.y**2)**0.5
+    def proj(self,v):
+        return (self*v)/(v*v+0.001)
+    def cross(self,v):
+        return self.y*v.x-self.x*v.y
+    def norm(self):
+        return Point(self.y,-self.x)/self.abs()
+    def cp(self,l0,l1):
+        m0=l0-self
+        m1=l1-self
+        d=m0-m1
+        t = m0.proj(d)
+        return min(1,max(t,0))
+    def acp(self,l0,l1):
+        return l0+(l1-l0)*self.cp(l0,l1)
+
+def push_distance(p,ri,l0,l1):
+    r=ri+0.05
+    v=l1-l0
+    w=p-l0
+    d=v.cross(w)/(v.abs()+0.001)
+    if -r<d<r and 0<p.cp(l0,l1)<1:
+        return v.norm()*(r-d)
+    elif (p-p.acp(l0,l1)).abs()<r:
+        b=p-p.acp(l0,l1)
+        if b.abs()>0:
+            return b/b.abs()*(r+0.2-b.abs())
+    
 #marching squares on four verticies
 def ms(thres,v,offset):
     vces = [i[0] for i in v]
@@ -110,9 +142,11 @@ class Terrainer(arcade.Window):
         self.cmouse=[0,0,0]
         self.sp = SPEED
         self.ch = []
-        self.pos = [0,0]
+        self.pos = np.array([0.0,0.0])
+        self.nx=0
+        self.ny=0
         self.n = seed
-        self.vel = [0,0]
+        self.vel = np.array([0.0,0.0])
         self.m = MSPEED
         self.lb = name
         self.inv = [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]]
@@ -140,16 +174,24 @@ class Terrainer(arcade.Window):
     def on_draw(self):
         self.clear()
         #Draws all segments
-        for i in range(int(self.pos[0]),int(self.pos[0])+self.p+2):
-            for j in range(int(self.pos[1]),int(self.pos[1])+self.p+2):
+        for i in range(int(self.pos[0]-self.p/2-1),int(self.pos[0]+self.p/2+1)):
+            for j in range(int(self.pos[1]-self.p/2-1),int(self.pos[1]+self.p/2+1)):
                 try:
                     m = self.lines[(i,j)][1]
                     for k in self.lines[(i,j)][0]:
-                        arcade.draw_line((k[0][0]-self.pos[0])*self.sc+self.bw,(k[1][0]-self.pos[1])*self.sc+self.bh,
-                                        (k[0][1]-self.pos[0])*self.sc+self.bw,(k[1][1]-self.pos[1])*self.sc+self.bh,
+                        arcade.draw_line((k[0][0]-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][0]-self.pos[1]+self.p/2)*self.sc+self.bh,
+                                        (k[0][1]-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][1]-self.pos[1]+self.p/2)*self.sc+self.bh,
                                         Terrainer.colors[m])
+                        arcade.draw_circle_filled((k[0][0]-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][0]-self.pos[1]+self.p/2)*self.sc+self.bh,
+                                                  0.05*self.sc,Terrainer.colors[m])
+                        arcade.draw_circle_filled((k[0][0]*0.75+k[0][1]*0.25-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][0]*0.75+k[1][1]*0.25-self.pos[1]+self.p/2)*self.sc+self.bh,
+                                                  0.05*self.sc,Terrainer.colors[m])
                 except KeyError:
                     0
+        #Draws character
+        arcade.draw_circle_filled(self.bw+self.p*self.sc/2,self.bh+self.p*self.sc/2,0.5*self.sc,(192,192,192,255))
+        arcade.draw_circle_filled(self.bw+self.p*self.sc/2+0.2*self.sc,self.bh+self.p*self.sc/2+0.1*self.sc,0.125*self.sc,(0,0,0,255))
+        arcade.draw_circle_filled(self.bw+self.p*self.sc/2-0.2*self.sc,self.bh+self.p*self.sc/2+0.1*self.sc,0.125*self.sc,(0,0,0,255))
         #Drawing your inventory
         for i in range(len(self.inv)):
             z = arcade.Sprite()
@@ -217,11 +259,10 @@ class Terrainer(arcade.Window):
                         z.center_x = 256 + j*32
                         z.center_y = self.h/2+32*len(self.inv)-32-64*i
                         arcade.draw_sprite(z)
-        #Draws character
-        arcade.draw_circle_filled(self.bw+self.p*self.sc/2,self.bh+self.p*self.sc/2,0.5*self.sc,(128,128,128,255))
-        arcade.draw_circle_filled(self.bw+self.p*self.sc/2+0.2*self.sc,self.bh+self.p*self.sc/2+0.1*self.sc,0.125*self.sc,(0,0,0,255))
-        arcade.draw_circle_filled(self.bw+self.p*self.sc/2-0.2*self.sc,self.bh+self.p*self.sc/2+0.1*self.sc,0.125*self.sc,(0,0,0,255))
     def on_update(self,delta):
+        self.nx=int(round(self.pos[0]))
+        self.ny=int(round(self.pos[1]))
+        opos=self.pos
         #Loading chunks
         if self.st == 0:
             if self.delt:
@@ -229,10 +270,9 @@ class Terrainer(arcade.Window):
             if self.creative:
                 self.inv[0][0] = 64
                 self.inv[0][1] = self.cthing
-            for i in range(int(self.pos[0]//self.p)-1,int(self.pos[0]//self.p)+2):
-                for j in range(int(self.pos[1]//self.p-1),int(self.pos[1]//self.p)+2):
+            for i in range(int(self.pos[0]//self.p-2),int(self.pos[0]//self.p)+2):
+                for j in range(int(self.pos[1]//self.p-2),int(self.pos[1]//self.p)+2):
                     if (i,j) not in self.ch:
-                        print(str(self.lb)+" LOADING CHUNK: "+str((i,j)))
                         self.ch.append((i,j))
                         #Calculating terrain
                         for k in range(self.p+1):
@@ -245,18 +285,40 @@ class Terrainer(arcade.Window):
                                     self.lines[(i*self.p+k,j*self.p+l)] = ms(0,(self.grid[(i*self.p+k,j*self.p+l)],self.grid[(i*self.p+k+1,j*self.p+l)],self.grid[(i*self.p+k,j*self.p+l+1)],self.grid[(i*self.p+k+1,j*self.p+l+1)]),[i*self.p+k,j*self.p+l])
                                 except KeyError:
                                     0
-            #Mining
-            self.pos[0]+=delta*self.m*self.vel[0]
-            self.pos[1]+=delta*self.m*self.vel[1]
-            self.cmouse[0]+=delta*self.m*self.vel[0]
-            self.cmouse[1]+=delta*self.m*self.vel[1]
+            #Colliding
+            ploc = Point(float(self.pos[0]+delta*self.m*self.vel[0]), float(self.pos[1]+delta*self.m*self.vel[1]))
+            for _ in range(5): #multiplicity to (hopefully) fully resolve
+                iloc = Point(int(np.floor(ploc.x)),int(np.floor(ploc.y)))
+                lloc = ploc-iloc
+                #ploc is my current position, iloc is the reference point, lloc is the local position
+                collide = []
+                for i in range(-1, 2):
+                    for j in range(-1, 2):
+                        for l0 in self.lines[(i+iloc.x,j+iloc.y)][0]:
+                            a = Point(l0[0][0], l0[1][0])-iloc
+                            b = Point(l0[0][1], l0[1][1])-iloc
+                            collide.append((a, b))
+                fp=None
+                fd=np.inf
+                for i in collide:
+                    a=push_distance(lloc,0.5,i[0],i[1])
+                    if a!=None:
+                        if a.abs()<fd:
+                            fd=a.abs()
+                            fp=a
+                if fp!=None:
+                    ploc+=fp
+            self.pos=[ploc.x,ploc.y]
+            #Changing mouse data to match
+            self.cmouse[0]+=self.pos[0]-opos[0]
+            self.cmouse[1]+=self.pos[1]-opos[1]
+            #Testing for minability, mining
             if self.cmouse[2]!=0:
                 try:
-                    #Testing for minability, mining
                     k = self.cmouse[0]
                     l = self.cmouse[1]
                     if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
-                        if self.cmouse[2] == 1:
+                        if self.cmouse[2] == 1 and self.inv[self.invslot][0]<64:
                             a = self.grid[(k,l)][0]
                             self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[self.invslot][0])))
                             self.inv[self.invslot][0] += a - self.grid[(k,l)][0]
@@ -268,6 +330,23 @@ class Terrainer(arcade.Window):
                         self.grid[(k,l)][1] = self.inv[self.invslot][1]
                     elif self.inv[self.invslot][0] == 0 and self.cmouse[2] == 1:
                         self.inv[self.invslot][1] = self.grid[(k,l)][1]
+                    elif self.cmouse[2]==1:
+                        sf=0
+                        for i in range(12):
+                            if self.inv[i][1]==self.grid[(k,l)][1] and 0<self.inv[i][0]<64:
+                                a = self.grid[(k,l)][0]
+                                self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
+                                self.inv[i][0] += a - self.grid[(k,l)][0]
+                                sf=1
+                                break
+                        if sf==0:
+                            for i in range(12):
+                                if self.inv[i][0]==0:
+                                    self.inv[i][1]=self.grid[(k,l)][1]
+                                    a = self.grid[(k,l)][0]
+                                    self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
+                                    self.inv[i][0] += a - self.grid[(k,l)][0]
+                                    break              
                     for (i,j) in [(k-1,l-1),(k,l-1),(k-1,l),(k,l)]:
                         try:
                             self.lines[(i,j)] = ms(0,(self.grid[(i,j)],self.grid[(i+1,j)],self.grid[(i,j+1)],self.grid[(i+1,j+1)]),[i,j])
@@ -275,15 +354,16 @@ class Terrainer(arcade.Window):
                             0
                 except KeyError:
                     0
+        
     def on_mouse_press(self,x,y,buttons,modifiers):
         #Calculating click position
-        ux = (x-self.bw)/self.sc+self.pos[0]
-        uy = (y-self.bh)/self.sc+self.pos[1]
+        ux = (x-self.w/2)/self.sc+self.pos[0]
+        uy = (y-self.h/2)/self.sc+self.pos[1]
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
-        ux = (x-self.bw)/self.sc+self.pos[0]
-        uy = (y-self.bh)/self.sc+self.pos[1]
+        ux = (x-self.w/2)/self.sc+self.pos[0]
+        uy = (y-self.h/2)/self.sc+self.pos[1]
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
     def on_mouse_release(self,x,y,button,modifiers):
         #Unsetting mouse data
@@ -343,7 +423,6 @@ class Terrainer(arcade.Window):
             self.invslot = 11
         #Moving
         if button == arcade.key.ENTER:
-            print(modifiers,arcade.key.LSHIFT)
             if modifiers == arcade.key.MOD_SHIFT:
                 if self.mqty > 0 and self.mthing == self.inv[self.invslot][1]:
                     if self.mqty/2 + self.inv[self.invslot][0] >= 64:
