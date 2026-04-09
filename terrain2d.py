@@ -16,7 +16,7 @@ msdict = {
     (0,0,0,1):([(3,1)],3),
     (1,0,0,1):([(4,0),(4,1),(2,4),(3,4)],0),
     (0,1,0,1):([(3,2)],1),
-    (1,1,0,1):([(0,3)],0),
+    (1,1,0,1):([(3,0)],0),
     (0,0,1,1):([(0,1)],2),
     (1,0,1,1):([(2,1)],0),
     (0,1,1,1):([(0,2)],1),
@@ -287,66 +287,70 @@ class Terrainer(arcade.Window):
                                     0
             #Colliding
             ploc = Point(float(self.pos[0]+delta*self.m*self.vel[0]), float(self.pos[1]+delta*self.m*self.vel[1]))
-            for _ in range(5): #multiplicity to (hopefully) fully resolve
-                iloc = Point(int(np.floor(ploc.x)),int(np.floor(ploc.y)))
-                lloc = ploc-iloc
-                #ploc is my current position, iloc is the reference point, lloc is the local position
-                collide = []
-                for i in range(-1, 2):
-                    for j in range(-1, 2):
-                        for l0 in self.lines[(i+iloc.x,j+iloc.y)][0]:
-                            a = Point(l0[0][0], l0[1][0])-iloc
-                            b = Point(l0[0][1], l0[1][1])-iloc
-                            collide.append((a, b))
-                fp=None
-                fd=np.inf
-                for i in collide:
-                    a=push_distance(lloc,0.5,i[0],i[1])
-                    if a!=None:
-                        if a.abs()<fd:
-                            fd=a.abs()
-                            fp=a
-                if fp!=None:
-                    ploc+=fp
+            if not self.creative:
+                for _ in range(5): #multiplicity to (hopefully) fully resolve
+                    iloc = Point(int(np.floor(ploc.x)),int(np.floor(ploc.y)))
+                    lloc = ploc-iloc
+                    #ploc is my current position, iloc is the reference point, lloc is the local position
+                    collide = []
+                    for i in range(-1, 2):
+                        for j in range(-1, 2):
+                            for l0 in self.lines[(i+iloc.x,j+iloc.y)][0]:
+                                a = Point(l0[0][0], l0[1][0])-iloc
+                                b = Point(l0[0][1], l0[1][1])-iloc
+                                collide.append((a, b))
+                    fp=None
+                    fd=np.inf
+                    for i in collide:
+                        a=push_distance(lloc,0.5,i[0],i[1])
+                        if a!=None:
+                            if a.abs()<fd:
+                                fd=a.abs()
+                                fp=a
+                    if fp!=None:
+                        ploc+=fp
             self.pos=[ploc.x,ploc.y]
             #Changing mouse data to match
             self.cmouse[0]+=self.pos[0]-opos[0]
             self.cmouse[1]+=self.pos[1]-opos[1]
             #Testing for minability, mining
             if self.cmouse[2]!=0:
+                print("Mining")
                 try:
                     k = self.cmouse[0]
                     l = self.cmouse[1]
-                    if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
-                        if self.cmouse[2] == 1 and self.inv[self.invslot][0]<64:
+                    if self.cmouse[2] == 1:
+                        if self.grid[(k,l)][1] == self.inv[self.invslot][1] and self.cmouse[2] == 1 and self.inv[self.invslot][0]<64:
                             a = self.grid[(k,l)][0]
                             self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[self.invslot][0])))
                             self.inv[self.invslot][0] += a - self.grid[(k,l)][0]
-                        if self.cmouse[2] == 2:
-                            a = self.grid[(k,l)][0]
-                            self.grid[(k,l)][0] = min(1, self.grid[(k,l)][0]+min(delta*self.sp,self.inv[self.invslot][0]))
-                            self.inv[self.invslot][0] -= self.grid[(k,l)][0] - a
-                    elif self.grid[(k,l)][0] == -1 and self.cmouse[2] == 2:
-                        self.grid[(k,l)][1] = self.inv[self.invslot][1]
-                    elif self.inv[self.invslot][0] == 0 and self.cmouse[2] == 1:
-                        self.inv[self.invslot][1] = self.grid[(k,l)][1]
-                    elif self.cmouse[2]==1:
-                        sf=0
-                        for i in range(12):
-                            if self.inv[i][1]==self.grid[(k,l)][1] and 0<self.inv[i][0]<64:
-                                a = self.grid[(k,l)][0]
-                                self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
-                                self.inv[i][0] += a - self.grid[(k,l)][0]
-                                sf=1
-                                break
-                        if sf==0:
+                        elif self.inv[self.invslot][0] == 0:
+                            self.inv[self.invslot][1] = self.grid[(k,l)][1]
+                        else:
+                            sf=0
                             for i in range(12):
-                                if self.inv[i][0]==0:
-                                    self.inv[i][1]=self.grid[(k,l)][1]
+                                if self.inv[i][1]==self.grid[(k,l)][1] and 0<self.inv[i][0]<64 and not(i==0 and self.creative):
                                     a = self.grid[(k,l)][0]
                                     self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
                                     self.inv[i][0] += a - self.grid[(k,l)][0]
-                                    break              
+                                    sf=1
+                                    break
+                            if sf==0:
+                                print(self.inv)
+                                for i in range(12):
+                                    if self.inv[i][0]==0:
+                                        self.inv[i][1]=self.grid[(k,l)][1]
+                                        a = self.grid[(k,l)][0]
+                                        self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
+                                        self.inv[i][0] += a - self.grid[(k,l)][0]
+                                        break
+                    if self.cmouse[2] == 2:
+                        if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
+                            a = self.grid[(k,l)][0]
+                            self.grid[(k,l)][0] = min(1, self.grid[(k,l)][0]+min(delta*self.sp,self.inv[self.invslot][0]))
+                            self.inv[self.invslot][0] -= self.grid[(k,l)][0] - a
+                        elif self.grid[(k,l)][0] == -1:
+                            self.grid[(k,l)][1] = self.inv[self.invslot][1]         
                     for (i,j) in [(k-1,l-1),(k,l-1),(k-1,l),(k,l)]:
                         try:
                             self.lines[(i,j)] = ms(0,(self.grid[(i,j)],self.grid[(i+1,j)],self.grid[(i,j+1)],self.grid[(i+1,j+1)]),[i,j])
