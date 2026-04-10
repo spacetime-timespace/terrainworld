@@ -209,7 +209,7 @@ class Terrainer(arcade.Window):
             z.center_y = self.h/2+16*len(self.inv)-16-32*i
             arcade.draw_sprite(z)
             c = len(str(int(self.inv[i][0])))
-            for j in range(len(str(int(self.inv[i][0])))):
+            for j in range(c):
                 x = str(int(self.inv[i][0]))[j]
                 z.texture = arcade.load_texture("font/tile"+x+".png")
                 z.scale = 0.5
@@ -225,6 +225,26 @@ class Terrainer(arcade.Window):
             z.center_x = self.w-80
         z.center_y = self.h/2+16*len(self.inv)-16-32*self.invslot
         arcade.draw_sprite(z)
+        #Coordinates
+        arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, 96, self.w-192, 192),(192,192,192,255))
+        arcade.draw_circle_filled(96,96,96,(192,192,192,255))
+        arcade.draw_circle_filled(self.w-96,96,96,(192,192,192,255))
+        s=f"({self.pos[0]:+.2f},{self.pos[1]:+.2f})"
+        c=len(s)
+        for j in range(c):
+                x = s[j]
+                z.texture = arcade.load_texture("font/tile"+x+".png")
+                z.scale = 4
+                z.center_x = self.w/2-c*24+16+48*j
+                z.center_y = 96
+                arcade.draw_sprite(z)
+        for j in range(len(str(int(self.inv[i][0])))):
+            x = str(int(self.inv[i][0]))[j]
+            z.texture = arcade.load_texture("font/tile"+x+".png")
+            z.scale = 0.5
+            z.center_x = self.w-16-c*2+2+4*j
+            z.center_y = self.h/2+16*len(self.inv)-16-32*i
+            arcade.draw_sprite(z)
         #Notice box
         if self.st != 0:
             arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, self.h/2, self.w-192, self.h-384),(128,128,128,255))
@@ -286,36 +306,32 @@ class Terrainer(arcade.Window):
                                 except KeyError:
                                     0
             #Colliding
-            ploc = Point(float(self.pos[0]+delta*self.m*self.vel[0]), float(self.pos[1]+delta*self.m*self.vel[1]))
-            if not self.creative:
-                for _ in range(5): #multiplicity to (hopefully) fully resolve
-                    iloc = Point(int(np.floor(ploc.x)),int(np.floor(ploc.y)))
-                    lloc = ploc-iloc
-                    #ploc is my current position, iloc is the reference point, lloc is the local position
-                    collide = []
-                    for i in range(-1, 2):
-                        for j in range(-1, 2):
-                            for l0 in self.lines[(i+iloc.x,j+iloc.y)][0]:
-                                a = Point(l0[0][0], l0[1][0])-iloc
-                                b = Point(l0[0][1], l0[1][1])-iloc
-                                collide.append((a, b))
-                    fp=None
-                    fd=np.inf
-                    for i in collide:
-                        a=push_distance(lloc,0.5,i[0],i[1])
-                        if a!=None:
-                            if a.abs()<fd:
-                                fd=a.abs()
-                                fp=a
-                    if fp!=None:
-                        ploc+=fp
+            ploc = Point(float(self.pos[0]), float(self.pos[1]))
+            pvel = Point(float(self.vel[0]), float(self.vel[1]))
+            for _ in range(5):
+                ploc += pvel*delta*self.m/5
+                if not self.creative:
+                    for _ in range(5): #multiplicity to (hopefully) fully resolve
+                        iloc = Point(int(np.floor(ploc.x)),int(np.floor(ploc.y)))
+                        lloc = ploc-iloc
+                        #ploc is my current position, iloc is the reference point, lloc is the local position
+                        collide = []
+                        for i in range(-1, 2):
+                            for j in range(-1, 2):
+                                for l0 in self.lines[(i+iloc.x,j+iloc.y)][0]:
+                                    a = Point(l0[0][0], l0[1][0])-iloc
+                                    b = Point(l0[0][1], l0[1][1])-iloc
+                                    collide.append((a, b))
+                        for i in collide:
+                            a=push_distance(lloc,0.5,i[0],i[1])
+                            if a!=None:
+                                ploc+=a
             self.pos=[ploc.x,ploc.y]
             #Changing mouse data to match
             self.cmouse[0]+=self.pos[0]-opos[0]
             self.cmouse[1]+=self.pos[1]-opos[1]
             #Testing for minability, mining
             if self.cmouse[2]!=0:
-                print("Mining")
                 try:
                     k = self.cmouse[0]
                     l = self.cmouse[1]
@@ -336,7 +352,6 @@ class Terrainer(arcade.Window):
                                     sf=1
                                     break
                             if sf==0:
-                                print(self.inv)
                                 for i in range(12):
                                     if self.inv[i][0]==0:
                                         self.inv[i][1]=self.grid[(k,l)][1]
