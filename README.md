@@ -29,7 +29,7 @@ The world in color 1.3 Dirt and Grass was added.
 
 A storage of stuff 1.4 Inventory is now functional, along with creative mode
 
-A helping hand (alpha) 1.5b - Planning crafting, currently wiht inventory analyzing and trashing
+Confined to a body 1.5 You actually have a player whose physics took forever to code
 
 Controls: 
 
