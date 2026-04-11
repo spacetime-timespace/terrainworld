@@ -105,9 +105,9 @@ IMG_SIZE = 1024
 sc = 16
 
 #Default game seeds
-r5 = rng(seed=4)
+r5 = rng(seed=(4,5))
 s5 = Simplex(2,r5)
-r6 = rng(seed=5)
+r6 = rng(seed=(6,7))
 s6 = Simplex(2,r6)
 
 '''grid = [[s5([i*sc/IMG_SIZE,j*sc/IMG_SIZE]) for j in range(IMG_SIZE)] for i in range(IMG_SIZE)]
@@ -127,7 +127,7 @@ def load_grid(x,y,w,noise):
 class Terrainer(arcade.Window):
     colors = [(192,255,128,255),(128,80,0,255),(128,128,128,255)]
     names = ["grass","dirt","stone"]
-    def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, WSIZE = 32, SPEED=1,seed=[s5,s6],MSPEED=16,name="terrainer"):
+    def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[s5,s6], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
         #Initializing variables...
         self.h = HEIGHT
@@ -142,6 +142,7 @@ class Terrainer(arcade.Window):
         self.cmouse=[0,0,0]
         self.sp = SPEED
         self.ch = []
+        self.chs = CHUNKSIZE
         self.pos = np.array([0.0,0.0])
         self.nx=0
         self.ny=0
@@ -290,19 +291,23 @@ class Terrainer(arcade.Window):
             if self.creative:
                 self.inv[0][0] = 64
                 self.inv[0][1] = self.cthing
-            for i in range(int(self.pos[0]//self.p-2),int(self.pos[0]//self.p)+2):
-                for j in range(int(self.pos[1]//self.p-2),int(self.pos[1]//self.p)+2):
+            for i in range(int((self.pos[0]-self.p)//self.chs)-1,int((self.pos[0]+self.p)//self.chs)+1):
+                for j in range(int((self.pos[1]-self.p)//self.chs)-1,int((self.pos[1]+self.p)//self.chs)+1):
                     if (i,j) not in self.ch:
                         self.ch.append((i,j))
                         #Calculating terrain
-                        for k in range(self.p+1):
-                            for l in range(self.p+1):
-                                self.grid[(i*self.p+k,j*self.p+l)] = load_grid(i*self.p+k,j*self.p+l,self.z,self.n)
+                        for k in range(self.chs+1):
+                            for l in range(self.chs+1):
+                                wx=i*self.chs+k
+                                wy=j*self.chs+l
+                                self.grid[(wx,wy)] = load_grid(wx,wy,self.z,self.n)
                         #Initializing segments
-                        for k in range(self.p):
-                            for l in range(self.p):
+                        for k in range(self.chs):
+                            for l in range(self.chs):
+                                wx=i*self.chs+k
+                                wy=j*self.chs+l
                                 try:
-                                    self.lines[(i*self.p+k,j*self.p+l)] = ms(0,(self.grid[(i*self.p+k,j*self.p+l)],self.grid[(i*self.p+k+1,j*self.p+l)],self.grid[(i*self.p+k,j*self.p+l+1)],self.grid[(i*self.p+k+1,j*self.p+l+1)]),[i*self.p+k,j*self.p+l])
+                                    self.lines[(wx,wy)] = ms(0,(self.grid[(wx,wy)],self.grid[(wx+1,wy)],self.grid[(wx,wy+1)],self.grid[(wx+1,wy+1)]),[wx,wy])
                                 except KeyError:
                                     0
             #Colliding

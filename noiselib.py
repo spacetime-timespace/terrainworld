@@ -1,8 +1,30 @@
 #@title Simplex Noise!
 
 import numpy as np
-rng = np.random.default_rng
 import matplotlib.pyplot as plt
+
+def hash0(n):
+    n=int(n)
+    h = (n & 0xFFFFFFFFFFFFFFFF) + 0x9E3779B97F4A7C15
+    h = (h ^ (h >> 30)) * 0xBF58476D1CE4E5B9
+    h = (h ^ (h >> 27)) * 0x94D049BB133111EB
+    h = h ^ (h >> 31)
+    return h & 0xFFFFFFFFFFFFFFFF
+
+def rng(seed=(0,1)):
+    def hash(*args):
+        combined = 0
+        for i,val in enumerate(args):
+            combined^=hash0(int(val)+i*(1618033989+seed[0]))
+        v1 = hash0(combined) / 0xFFFFFFFFFFFFFFFF
+        combined = 0
+        for i,val in enumerate(args):
+            combined^=hash0(int(val)+i*(1618033989+seed[1]))
+        v2 = hash0(combined) / 0xFFFFFFFFFFFFFFFF
+        mag = np.sqrt(-2.0 * np.log(max(1e-10, v1)))
+        z0 = mag * np.cos(2.0 * np.pi * v2)
+        return z0
+    return hash
 
 def get_gradient(gradient_grid, coords):
     """
@@ -71,9 +93,12 @@ def _simplex(dims, gradient_grid, inp):
     # 100.0 is a common scaling factor for 2D simplex noise.
     return total_noise * 100.00
 
-def generate_unit_vector(dims,r):
+def generate_unit_vector(dims,r,inp):
     """Generates a random unit vector."""
-    vec = r.normal(size=dims)
+    l=[]
+    for i in range(dims):
+       l.append(r(i,*inp))
+    vec=np.array(l)
     norm = np.linalg.norm(vec)
     return vec / norm if norm != 0 else np.zeros(dims)
 
@@ -87,7 +112,7 @@ class Simplex:
   def __call__(self,inp):
     a = _simplex(self.dims,self.data,inp)
     if type(a) == tuple:
-      self.data[a] = generate_unit_vector(self.dims,self.rng)
+      self.data[a] = generate_unit_vector(self.dims,self.rng,a)
       print("Loading chunk: "+str(a))
       return self(inp)
     else:
