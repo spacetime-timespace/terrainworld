@@ -2,8 +2,40 @@
 import arcade
 import matplotlib.pyplot as plt
 from noiselib import rng, Simplex, np
+import time
+#Levenshtein distance
+ins=0.1
+dels=1.0
+subs=1.0
+trans=0.5
+def levenshtein(s1, s2):
+    if len(s1) == 0:
+        return 0
+
+    if len(s2) == 0:
+        return 0
+    preprevious_row = []
+    previous_row = [i*ins for i in range(len(s2) + 1)]
+    for i, c1 in enumerate(s1):
+        current_row = [(i+1)*dels]
+        for j, c2 in enumerate(s2):
+            insertions = current_row[j] + ins
+            deletions = previous_row[j+1] + dels
+            substitutions = previous_row[j] + subs
+            transpositions = np.inf
+            matchings = np.inf
+            if len(s1) > 1 and len(s2) > 1 and i>0 and j>0:
+                if s1[i]==s2[j-1] and s2[j]==s1[i-1]:
+                    transpositions = preprevious_row[j-1] + trans
+            if c1==c2:
+                matchings=previous_row[j]
+            current_row.append(min(insertions, deletions, substitutions, transpositions, matchings))
+        preprevious_row = previous_row
+        previous_row = current_row
+    return 1-np.exp(-previous_row[-1]/len(s1))
 #Every pattern in marching squares
 #Interior to the left
+bkg=(10,25,47,255)
 msdict = {
     (0,0,0,0):([],0),
     (1,0,0,0):([(2,0)],0),
@@ -129,8 +161,11 @@ class Terrainer(arcade.Window):
               "dirt":(128,80,0,255),
               "stone":(128,128,128,255)}
     names = ["grass","dirt","stone"]
-    def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[s5,s6], MSPEED=16, name="terrainer"):
+    def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[s5,s6], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
+        self.ctx.default_texture_filter = (arcade.gl.NEAREST, arcade.gl.NEAREST)
+        self.ctx.default_texture_filter = (arcade.gl.NEAREST, arcade.gl.NEAREST)
+        self.set_vsync(True)
         #Initializing variables...
         self.h = HEIGHT
         self.w = WIDTH
@@ -155,11 +190,18 @@ class Terrainer(arcade.Window):
         self.inv = [[0,"grass"] for _ in range(12)]
         self.invslot = 0
         self.creative = 0
-        self.cthing = 0
         self.mthing = 0
         self.mqty = 0
         self.delt = 0
         self.st = 0
+        self.searchstr = ""
+        self.strpos=0
+        self.searchres=[]
+        self.searchpg=0
+        self.fuzz=0.25
+        self.adjfuzz=False
+        self.updres=False
+        self.searchst=0
     def on_resize(self,width,height):
         #Resize handling: re-set width, height
         self.w = width
@@ -214,7 +256,7 @@ class Terrainer(arcade.Window):
             c = len(str(int(self.inv[i][0])))
             for j in range(c):
                 x = str(int(self.inv[i][0]))[j]
-                z.texture = arcade.load_texture("font/tile"+x+".png")
+                z.texture = arcade.load_texture("Font-white/tile"+x+".png")
                 z.scale = 0.5
                 z.center_x = self.w-16-c*2+2+4*j
                 z.center_y = self.h/2+16*len(self.inv)-16-32*i
@@ -228,60 +270,117 @@ class Terrainer(arcade.Window):
             z.center_x = self.w-80
         z.center_y = self.h/2+16*len(self.inv)-16-32*self.invslot
         arcade.draw_sprite(z)
+        #Gamemode
+        t="creative" if self.creative else "normal"
+        for j in range(len(t)):
+            if t[j] != " ":
+                z = arcade.Sprite()
+                z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                z.scale = 2
+                z.center_x = self.w-len(t)*32+j*32
+                z.center_y = self.h-32
+                arcade.draw_sprite(z)
+        #Coordinates background
+        arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, 96, self.w-192, 192),bkg)
+        arcade.draw_circle_filled(96,96,96,bkg)
+        arcade.draw_circle_filled(self.w-96,96,96,bkg)
+        #Notice box
+        if self.st != 0:
+            arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, self.h/2, self.w-192, self.h-384),bkg)
+            arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, self.h/2, self.w-384, self.h-192),bkg)
+            arcade.draw_circle_filled(192,192,96,bkg)
+            arcade.draw_circle_filled(self.w-192,192,96,bkg)
+            arcade.draw_circle_filled(192,self.h-192,96,bkg)
+            arcade.draw_circle_filled(self.w-192,self.h-192,96,bkg)
         #Coordinates
-        arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, 96, self.w-192, 192),(192,192,192,255))
-        arcade.draw_circle_filled(96,96,96,(192,192,192,255))
-        arcade.draw_circle_filled(self.w-96,96,96,(192,192,192,255))
         s=f"({self.pos[0]:+.2f},{self.pos[1]:+.2f})"
         c=len(s)
         for j in range(c):
             x = s[j]
-            z.texture = arcade.load_texture("font/tile"+x+".png")
+            z.texture = arcade.load_texture("Font-white/tile"+x+".png")
             z.scale = 4
             z.center_x = self.w/2-c*24+16+48*j
             z.center_y = 96
             arcade.draw_sprite(z)
-        for j in range(len(str(int(self.inv[i][0])))):
-            x = str(int(self.inv[i][0]))[j]
-            z.texture = arcade.load_texture("font/tile"+x+".png")
-            z.scale = 0.5
-            z.center_x = self.w-16-c*2+2+4*j
-            z.center_y = self.h/2+16*len(self.inv)-16-32*i
-            arcade.draw_sprite(z)
-        #Notice box
-        if self.st != 0:
-            arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, self.h/2, self.w-192, self.h-384),(128,128,128,255))
-            arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, self.h/2, self.w-384, self.h-192),(128,128,128,255))
-            arcade.draw_circle_filled(192,192,96,(128,128,128,255))
-            arcade.draw_circle_filled(self.w-192,192,96,(128,128,128,255))
-            arcade.draw_circle_filled(192,self.h-192,96,(128,128,128,255))
-            arcade.draw_circle_filled(self.w-192,self.h-192,96,(128,128,128,255))
         if self.st == 1:
+            arcade.draw_circle_filled(192,192,24,(255,128,128,255))
             for i in range(12):
                 z = arcade.Sprite()
                 z.texture = arcade.load_texture("itembox.png")
-                z.scale = 4
+                z.scale = (self.h-384)/12/16
                 z.center_x = 192
-                z.center_y = self.h/2+32*len(self.inv)-32-64*i
+                z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                 arcade.draw_sprite(z)
                 if self.inv[i][0] == 0:
                     continue
                 z = arcade.Sprite()
                 z.texture = arcade.load_texture("tiles/"+self.inv[i][1]+".png")
-                z.scale = 2
+                z.scale = (self.h-384)/12/32
                 z.center_x = 192
-                z.center_y = self.h/2+32*len(self.inv)-32-64*i
+                z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                 arcade.draw_sprite(z)
                 t = "{:6} ".format("{:.3f}".format(self.inv[i][0]))
                 t += self.inv[i][1]
                 for j in range(len(t)):
                     if t[j] != " ":
                         z = arcade.Sprite()
-                        z.texture = arcade.load_texture("font/tile"+t[j]+".png")
-                        z.scale = 2
-                        z.center_x = 256 + j*32
-                        z.center_y = self.h/2+32*len(self.inv)-32-64*i
+                        z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                        z.scale = (self.h-384)/12/32
+                        z.center_x = 256 + j*(self.h-384)/24
+                        z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                         arcade.draw_sprite(z)
+        if self.st == 2:
+            arcade.draw_circle_filled(192,192,24,(255,128,128,255))
+            t = self.searchstr
+            for j in range(len(t)):
+                if t[j] != " ":
+                    z = arcade.Sprite()
+                    z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                    z.scale = 2
+                    z.center_x = 192 + j*24
+                    z.center_y = self.h-192
+                    arcade.draw_sprite(z)
+            arcade.draw_line(180+24*self.strpos,self.h-176,180+24*self.strpos,self.h-208,(255,255,255,255*int((time.time()*2)%2)))
+            arcade.draw_line(self.w-192,self.h-192,self.w-192,192,(255,255,255,255),5)
+            arcade.draw_circle_filled(self.w-192,192+(1-self.fuzz)*(self.h-384),24,(57-57*self.fuzz,255-45*self.fuzz,20+235*self.fuzz,255))
+            for i in range(6):
+                for j in range(6):
+                    if 6*self.searchpg+6*j+i<len(self.searchres):
+                        b=self.searchres[int(6*self.searchpg+6*j+i)]
+                        z = arcade.Sprite()
+                        z.texture = arcade.load_texture("itembox.png")
+                        z.scale = (self.h-432)/6/16
+                        z.center_x = self.w/2-(self.h-432)/2+(self.h-432)/12+(self.h-432)/6*i
+                        z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/12-(self.h-432)/6*j
+                        arcade.draw_sprite(z)
+                        z = arcade.Sprite()
+                        z.texture = arcade.load_texture("Tiles/"+b+".png")
+                        z.scale = (self.h-432)/6/32
+                        z.center_x = self.w/2-(self.h-432)/2+(self.h-432)/12+(self.h-432)/6*i
+                        z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/12-(self.h-432)/6*j
+                        arcade.draw_sprite(z)
+                        if self.searchst==1:
+                            t=b
+                            for k in range(len(t)):
+                                if t[k] != " ":
+                                    z = arcade.Sprite()
+                                    z.texture = arcade.load_texture("Font-white/tile"+t[k]+".png")
+                                    z.scale = (self.h-432)/144/len(t)
+                                    z.center_x = self.w/2-(self.h-432)/2+(self.h-432)/12+(self.h-432)/6*i-(self.h-432)/18+(self.h-432)/18/len(t)+(self.h-432)/9/len(t)*k
+                                    z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/8-(self.h-432)/6*j
+                                    arcade.draw_sprite(z)
+                            v=levenshtein(self.searchstr.lower(),b)
+                            t=f"{v:.2f}"
+                            v=max(0,min(1,v))
+                            for k in range(len(t)):
+                                if t[k] != " ":
+                                    z = arcade.Sprite()
+                                    z.texture = arcade.load_texture("Font-white/tile"+t[k]+".png")
+                                    z.scale = (self.h-432)/144/len(t)
+                                    z.center_x = self.w/2-(self.h-432)/2+(self.h-432)/12+(self.h-432)/6*i-(self.h-432)/18+(self.h-432)/18/len(t)+(self.h-432)/9/len(t)*k
+                                    z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/24-(self.h-432)/6*j
+                                    z.color = (57-57*v,255-45*v,20+235*v,255)
+                                    arcade.draw_sprite(z)
     def on_update(self,delta):
         self.nx=int(round(self.pos[0]))
         self.ny=int(round(self.pos[1]))
@@ -290,9 +389,6 @@ class Terrainer(arcade.Window):
         if self.st == 0:
             if self.delt:
                 self.inv[self.invslot][0] = max(0,self.inv[self.invslot][0]-self.sp*delta)
-            if self.creative:
-                self.inv[0][0] = 64
-                self.inv[0][1] = Terrainer.names[self.cthing]
             for i in range(int((self.pos[0]-self.p)//self.chs)-1,int((self.pos[0]+self.p)//self.chs)+1):
                 for j in range(int((self.pos[1]-self.p)//self.chs)-1,int((self.pos[1]+self.p)//self.chs)+1):
                     if (i,j) not in self.ch:
@@ -380,101 +476,280 @@ class Terrainer(arcade.Window):
                             0
                 except KeyError:
                     0
-        
+        if self.updres:
+            self.searchres=[]
+            if self.searchstr=="":
+                self.searchres=Terrainer.names
+                self.searchres.sort()
+            else:
+                for i in Terrainer.names:
+                    if levenshtein(self.searchstr.lower(),i) <= self.fuzz:
+                        self.searchres.append(i)
+                self.searchres.sort(key=lambda x: levenshtein(self.searchstr.lower(),x))
+                self.updres = 0
     def on_mouse_press(self,x,y,buttons,modifiers):
         #Calculating click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
         uy = (y-self.h/2)/self.sc+self.pos[1]
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
+        if self.st!=0 and (x-192)**2+(y-192)**2<=576:
+            self.st=0
+        elif self.st==2 and abs(x-self.w+192)<=24 and self.h-168>=y>=168:
+            self.fuzz=min(1,max(0,1-(y-192)/(self.h-384)))
+            self.adjfuzz=True
+            self.updres=True
+        elif self.st==2 and modifiers == arcade.key.MOD_SHIFT:
+            self.searchst = 1-self.searchst
+        elif self.st==2 and self.w/2-(self.h-432)/2<=x<=self.w/2+(self.h-432)/2 and 216<=y<=self.h-216:
+            gx=np.floor((6*x-3*self.w+3*self.h-1296)/(self.h-432))
+            gy=5-np.floor((6*y-1296)/(self.h-432))
+            i=int(gx+gy*6+self.searchpg*6)
+            if i<len(self.searchres):
+                self.inv[self.invslot][0]=64
+                self.inv[self.invslot][1]=self.searchres[i]
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
         uy = (y-self.h/2)/self.sc+self.pos[1]
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
+        if self.adjfuzz:
+            self.fuzz=min(1,max(0,1-(y-192)/(self.h-384)))
+            self.updres=True
     def on_mouse_release(self,x,y,button,modifiers):
         #Unsetting mouse data
         self.cmouse = [0,0,0]
+        self.adjfuzz=False
     def on_key_press(self,button,modifiers):
         #Checking movement
-        if button == arcade.key.LEFT:
-            self.vel[0]-=1
-        if button == arcade.key.RIGHT:
-            self.vel[0]+=1
-        if button == arcade.key.DOWN:
-            self.vel[1]-=1
-        if button == arcade.key.UP:
-            self.vel[1]+=1
-        #Inventory stuff
-        if button == arcade.key.F:
-            self.creative = 1 - self.creative
-        if button == arcade.key.S:
-            self.cthing = (self.cthing - 1)%len(Terrainer.colors)
-        if button == arcade.key.D:
-            self.cthing = (self.cthing + 1)%len(Terrainer.colors)
-        if button == arcade.key.Z:
-            self.delt = 1
-        if button == arcade.key.X:
-            self.inv[self.invslot][0] = 0
-        #2 - craft, 1 - view inventory, 0 - play
-        if button == arcade.key.C:
-            self.st = 2
-        if button == arcade.key.V:
-            self.st = 1
-        if button == arcade.key.B:
-            self.st = 0
-        #Slots
-        if button == arcade.key.KEY_1:
-            self.invslot = 0
-        if button == arcade.key.KEY_2:
-            self.invslot = 1
-        if button == arcade.key.KEY_3:
-            self.invslot = 2
-        if button == arcade.key.KEY_4:
-            self.invslot = 3
-        if button == arcade.key.KEY_5:
-            self.invslot = 4
-        if button == arcade.key.KEY_6:
-            self.invslot = 5
-        if button == arcade.key.KEY_7:
-            self.invslot = 6
-        if button == arcade.key.KEY_8:
-            self.invslot = 7
-        if button == arcade.key.KEY_9:
-            self.invslot = 8
-        if button == arcade.key.KEY_0:
-            self.invslot = 9
-        if button == arcade.key.MINUS:
-            self.invslot = 10
-        if button == arcade.key.EQUAL:
-            self.invslot = 11
-        #Moving
-        if button == arcade.key.ENTER:
-            if modifiers == arcade.key.MOD_SHIFT:
-                if self.mqty > 0 and self.mthing == self.inv[self.invslot][1]:
-                    if self.mqty/2 + self.inv[self.invslot][0] >= 64:
-                        self.mqty = self.mqty + self.inv[self.invslot][0] - 64
-                        self.inv[self.invslot][0] = 64
-                    else:
-                        self.inv[self.invslot][0] += self.mqty/2
-                        self.mqty /= 2
-                elif self.mqty == 0:
-                    self.mqty = self.inv[self.invslot][0] / 2
-                    self.mthing = self.inv[self.invslot][1]
-                    self.inv[self.invslot][0] /= 2
-            else:
-                if self.mqty > 0 and (self.mthing == self.inv[self.invslot][1] or self.inv[self.invslot][0] == 0):
-                    if self.mqty + self.inv[self.invslot][0] >= 64:
-                        self.mqty = self.mqty + self.inv[self.invslot][0] - 64
-                        self.inv[self.invslot][0] = 64
-                        self.inv[self.invslot][1] = self.mthing
-                    else:
-                        self.inv[self.invslot][0] += self.mqty
-                        self.inv[self.invslot][1] = self.mthing
-                        self.mqty = 0
-                elif self.mqty == 0:
-                    self.mqty = self.inv[self.invslot][0]
-                    self.mthing = self.inv[self.invslot][1]
-                    self.inv[self.invslot][0] = 0
+        if self.st!=2:
+            if button == arcade.key.LEFT:
+                self.vel[0]-=1
+            if button == arcade.key.RIGHT:
+                self.vel[0]+=1
+            if button == arcade.key.DOWN:
+                self.vel[1]-=1
+            if button == arcade.key.UP:
+                self.vel[1]+=1
+            #Inventory stuff
+            if button == arcade.key.F:
+                self.creative = 1 - self.creative
+            if button == arcade.key.Z:
+                self.delt = 1
+            if button == arcade.key.X:
+                self.inv[self.invslot][0] = 0
+            #2 - creative, 1 - view inventory, 0 - play
+            if button == arcade.key.C and self.creative:
+                self.st = 2
+            if button == arcade.key.V:
+                self.st = 1
+            if button == arcade.key.ESCAPE:
+                self.st = 0
+            #Slots
+            if button == arcade.key.KEY_1:
+                self.invslot = 0
+            if button == arcade.key.KEY_2:
+                self.invslot = 1
+            if button == arcade.key.KEY_3:
+                self.invslot = 2
+            if button == arcade.key.KEY_4:
+                self.invslot = 3
+            if button == arcade.key.KEY_5:
+                self.invslot = 4
+            if button == arcade.key.KEY_6:
+                self.invslot = 5
+            if button == arcade.key.KEY_7:
+                self.invslot = 6
+            if button == arcade.key.KEY_8:
+                self.invslot = 7
+            if button == arcade.key.KEY_9:
+                self.invslot = 8
+            if button == arcade.key.KEY_0:
+                self.invslot = 9
+            if button == arcade.key.MINUS:
+                self.invslot = 10
+            if button == arcade.key.EQUAL:
+                self.invslot = 11
+            #Moving
+            if button == arcade.key.ENTER:
+                if modifiers == arcade.key.MOD_SHIFT:
+                    if self.mqty > 0 and self.mthing == self.inv[self.invslot][1]:
+                        if self.mqty/2 + self.inv[self.invslot][0] >= 64:
+                            self.mqty = self.mqty + self.inv[self.invslot][0] - 64
+                            self.inv[self.invslot][0] = 64
+                        else:
+                            self.inv[self.invslot][0] += self.mqty/2
+                            self.mqty /= 2
+                    elif self.mqty == 0:
+                        self.mqty = self.inv[self.invslot][0] / 2
+                        self.mthing = self.inv[self.invslot][1]
+                        self.inv[self.invslot][0] /= 2
+                else:
+                    if self.mqty > 0 and (self.mthing == self.inv[self.invslot][1] or self.inv[self.invslot][0] == 0):
+                        if self.mqty + self.inv[self.invslot][0] >= 64:
+                            self.mqty = self.mqty + self.inv[self.invslot][0] - 64
+                            self.inv[self.invslot][0] = 64
+                            self.inv[self.invslot][1] = self.mthing
+                        else:
+                            self.inv[self.invslot][0] += self.mqty
+                            self.inv[self.invslot][1] = self.mthing
+                            self.mqty = 0
+                    elif self.mqty == 0:
+                        self.mqty = self.inv[self.invslot][0]
+                        self.mthing = self.inv[self.invslot][1]
+                        self.inv[self.invslot][0] = 0
+        else:
+            #String navigation
+            if button == arcade.key.LEFT:
+                self.strpos = max(0,self.strpos-1)
+            if button == arcade.key.RIGHT:
+                self.strpos = min(len(self.searchstr),self.strpos+1)
+            #Page navigation
+            if button == arcade.key.UP:
+                self.searchpg = max(0,self.searchpg-1)
+            if button == arcade.key.DOWN:
+                self.searchpg = min(np.ceil(len(self.searchres)/6)-1,self.searchpg+1)
+            #Input
+            if button == arcade.key.BACKSPACE and self.strpos > 0:
+                self.searchstr = self.searchstr[:self.strpos-1]+self.searchstr[self.strpos:]
+                self.strpos-=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.A:
+                self.searchstr=self.searchstr[:self.strpos]+"A"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.B:
+                self.searchstr=self.searchstr[:self.strpos]+"B"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.C:
+                self.searchstr=self.searchstr[:self.strpos]+"C"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.D:
+                self.searchstr=self.searchstr[:self.strpos]+"D"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.E:
+                self.searchstr=self.searchstr[:self.strpos]+"E"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.F:
+                self.searchstr=self.searchstr[:self.strpos]+"F"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.G:
+                self.searchstr=self.searchstr[:self.strpos]+"G"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.H:
+                self.searchstr=self.searchstr[:self.strpos]+"H"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.I:
+                self.searchstr=self.searchstr[:self.strpos]+"I"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.J:
+                self.searchstr=self.searchstr[:self.strpos]+"J"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.K:
+                self.searchstr=self.searchstr[:self.strpos]+"K"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.L:
+                self.searchstr=self.searchstr[:self.strpos]+"L"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.M:
+                self.searchstr=self.searchstr[:self.strpos]+"M"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.N:
+                self.searchstr=self.searchstr[:self.strpos]+"N"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.O:
+                self.searchstr=self.searchstr[:self.strpos]+"O"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.P:
+                self.searchstr=self.searchstr[:self.strpos]+"P"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.Q:
+                self.searchstr=self.searchstr[:self.strpos]+"Q"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.R:
+                self.searchstr=self.searchstr[:self.strpos]+"R"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.S:
+                self.searchstr=self.searchstr[:self.strpos]+"S"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.T:
+                self.searchstr=self.searchstr[:self.strpos]+"T"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.U:
+                self.searchstr=self.searchstr[:self.strpos]+"U"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.V:
+                self.searchstr=self.searchstr[:self.strpos]+"V"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.W:
+                self.searchstr=self.searchstr[:self.strpos]+"W"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.X:
+                self.searchstr=self.searchstr[:self.strpos]+"X"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.Y:
+                self.searchstr=self.searchstr[:self.strpos]+"Y"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.Z:
+                self.searchstr=self.searchstr[:self.strpos]+"Z"+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            if button == arcade.key.SPACE:
+                self.searchstr=self.searchstr[:self.strpos]+" "+self.searchstr[self.strpos:]
+                self.strpos+=1
+                self.searchpg=0
+                self.updres=True
+            
     def on_key_release(self,button,modifiers):
         #Un-moving
         if button == arcade.key.LEFT:
