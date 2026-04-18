@@ -121,11 +121,13 @@ plt.show()'''
 
 #Loading a terrain value, will get more complicated
 def load_grid(x,y,w,noise):
-    return [min(1,max(-1,noise[0]((x/w,y/w))*5)),0 if noise[1]((x/w/3,y/w/3)) <= -0.25 else (1 if noise[1]((x/w/3,y/w/3)) <= 0.25 else 2)]
+    return [min(1,max(-1,noise[0]((x/w,y/w))*5)),"grass" if noise[1]((x/w/3,y/w/3)) <= -0.25 else ("dirt" if noise[1]((x/w/3,y/w/3)) <= 0.25 else "stone")]
 
 #The game!
 class Terrainer(arcade.Window):
-    colors = [(192,255,128,255),(128,80,0,255),(128,128,128,255)]
+    colors = {"grass":(192,255,128,255),
+              "dirt":(128,80,0,255),
+              "stone":(128,128,128,255)}
     names = ["grass","dirt","stone"]
     def __init__(self,WIDTH=240, HEIGHT=180, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[s5,s6], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
@@ -150,7 +152,7 @@ class Terrainer(arcade.Window):
         self.vel = np.array([0.0,0.0])
         self.m = MSPEED
         self.lb = name
-        self.inv = [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]]
+        self.inv = [[0,"grass"] for _ in range(12)]
         self.invslot = 0
         self.creative = 0
         self.cthing = 0
@@ -204,7 +206,7 @@ class Terrainer(arcade.Window):
             if self.inv[i][0] == 0:
                 continue
             z = arcade.Sprite()
-            z.texture = arcade.load_texture("tiles/"+Terrainer.names[self.inv[i][1]]+".png")
+            z.texture = arcade.load_texture("tiles/"+self.inv[i][1]+".png")
             z.scale = 1
             z.center_x = self.w-16
             z.center_y = self.h/2+16*len(self.inv)-16-32*i
@@ -233,12 +235,12 @@ class Terrainer(arcade.Window):
         s=f"({self.pos[0]:+.2f},{self.pos[1]:+.2f})"
         c=len(s)
         for j in range(c):
-                x = s[j]
-                z.texture = arcade.load_texture("font/tile"+x+".png")
-                z.scale = 4
-                z.center_x = self.w/2-c*24+16+48*j
-                z.center_y = 96
-                arcade.draw_sprite(z)
+            x = s[j]
+            z.texture = arcade.load_texture("font/tile"+x+".png")
+            z.scale = 4
+            z.center_x = self.w/2-c*24+16+48*j
+            z.center_y = 96
+            arcade.draw_sprite(z)
         for j in range(len(str(int(self.inv[i][0])))):
             x = str(int(self.inv[i][0]))[j]
             z.texture = arcade.load_texture("font/tile"+x+".png")
@@ -265,13 +267,13 @@ class Terrainer(arcade.Window):
                 if self.inv[i][0] == 0:
                     continue
                 z = arcade.Sprite()
-                z.texture = arcade.load_texture("tiles/"+Terrainer.names[self.inv[i][1]]+".png")
+                z.texture = arcade.load_texture("tiles/"+self.inv[i][1]+".png")
                 z.scale = 2
                 z.center_x = 192
                 z.center_y = self.h/2+32*len(self.inv)-32-64*i
                 arcade.draw_sprite(z)
                 t = "{:6} ".format("{:.3f}".format(self.inv[i][0]))
-                t += Terrainer.names[self.inv[i][1]]
+                t += self.inv[i][1]
                 for j in range(len(t)):
                     if t[j] != " ":
                         z = arcade.Sprite()
@@ -290,7 +292,7 @@ class Terrainer(arcade.Window):
                 self.inv[self.invslot][0] = max(0,self.inv[self.invslot][0]-self.sp*delta)
             if self.creative:
                 self.inv[0][0] = 64
-                self.inv[0][1] = self.cthing
+                self.inv[0][1] = Terrainer.names[self.cthing]
             for i in range(int((self.pos[0]-self.p)//self.chs)-1,int((self.pos[0]+self.p)//self.chs)+1):
                 for j in range(int((self.pos[1]-self.p)//self.chs)-1,int((self.pos[1]+self.p)//self.chs)+1):
                     if (i,j) not in self.ch:
