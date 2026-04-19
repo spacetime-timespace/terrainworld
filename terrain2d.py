@@ -3,6 +3,7 @@ import arcade
 import matplotlib.pyplot as plt
 from noiselib import rng, Simplex, np
 import time
+from PIL import Image
 #Levenshtein distance
 ins=0.1
 dels=1.0
@@ -151,6 +152,20 @@ for i in range(IMG_SIZE-1):
       plt.plot(k[0],k[1],c="blue")
 plt.show()'''
 
+#These are a few of my favorite things (sorry, I meant colors)
+
+GREEN=(64,255,0,255)
+GRAY_GREEN=(128,192,64,255)
+LIGHT_GREEN=(192,255,128,255)
+DARK_GREEN=(64,128,0,255)
+BROWN=(128,96,0,255)
+TAN=(192,192,128,255)
+BLACK=(0,0,0,255)
+DARK_GRAY=(64,64,64,255)
+GRAY=(128,128,128,255)
+LIGHT_GRAY=(192,192,192,255)
+WHITE=(255,255,255,255)
+
 #Loading a terrain value, will get more complicated
 def load_grid(x,y,w,noise):
     return [min(1,max(-1,noise[0]((x/w,y/w))*5)),"grass" if noise[1]((x/w/3,y/w/3)) <= -0.25 else ("dirt" if noise[1]((x/w/3,y/w/3)) <= 0.25 else "stone")]
@@ -161,6 +176,20 @@ class Terrainer(arcade.Window):
               "dirt":(128,80,0,255),
               "stone":(128,128,128,255)}
     names = ["grass","dirt","stone"]
+    textures = {
+        "grass":(LIGHT_GREEN,GREEN,GREEN,DARK_GREEN,GRAY_GREEN,LIGHT_GREEN,WHITE,LIGHT_GREEN),
+        "dirt":(BROWN,BROWN,BROWN,BLACK,BROWN,BLACK,BLACK,BROWN),
+        "stone":(GRAY,LIGHT_GRAY,WHITE,GRAY,BLACK,GRAY,DARK_GRAY,GRAY),
+    }
+    craftUI = {
+        "stone":[(3,3),[(0,0),(1,0),(2,0)],[(1,2)]]
+    }
+    craftRecp = {
+        "stone":{
+            ("grass","dirt","grass"):(1,[1,1,1],["grass"],[3])
+        }
+    }
+    Textures={}
     def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[s5,s6], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
         self.ctx.default_texture_filter = (arcade.gl.NEAREST, arcade.gl.NEAREST)
@@ -189,7 +218,7 @@ class Terrainer(arcade.Window):
         self.lb = name
         self.inv = [[0,"grass"] for _ in range(12)]
         self.invslot = 0
-        self.creative = 0
+        self.mode = 0
         self.mthing = 0
         self.mqty = 0
         self.delt = 0
@@ -202,6 +231,7 @@ class Terrainer(arcade.Window):
         self.adjfuzz=False
         self.updres=False
         self.searchst=0
+        self.modesw=False
     def on_resize(self,width,height):
         #Resize handling: re-set width, height
         self.w = width
@@ -216,6 +246,18 @@ class Terrainer(arcade.Window):
         self.sc = min(self.w,self.h)/self.p
         self.bw = 0 if self.w < self.h else (self.w-self.h)/2
         self.bh = 0 if self.h < self.w else (self.h-self.w)/2
+        for b,t in Terrainer.textures.items():
+            img = Image.new('RGBA', (len(t), 1))
+            img.putdata(t)
+            Terrainer.Textures[b]=arcade.Texture(img)
+    def draw_line(self,x1,y1,x2,y2,texture):
+        dx=x2-x1
+        dy=y2-y1
+        l=np.sqrt(dx**2+dy**2)
+        a=np.degrees(np.atan2(dy,dx))
+        cx=(x1+x2)/2
+        cy=(y1+y2)/2
+        arcade.draw_texture_rect(Terrainer.Textures[texture],arcade.XYWH(cx,cy,l,4),angle=-a)
     def on_draw(self):
         self.clear()
         #Draws all segments
@@ -224,9 +266,9 @@ class Terrainer(arcade.Window):
                 try:
                     m = self.lines[(i,j)][1]
                     for k in self.lines[(i,j)][0]:
-                        arcade.draw_line((k[0][0]-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][0]-self.pos[1]+self.p/2)*self.sc+self.bh,
+                        self.draw_line((k[0][0]-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][0]-self.pos[1]+self.p/2)*self.sc+self.bh,
                                         (k[0][1]-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][1]-self.pos[1]+self.p/2)*self.sc+self.bh,
-                                        Terrainer.colors[m])
+                                        m)
                         arcade.draw_circle_filled((k[0][0]-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][0]-self.pos[1]+self.p/2)*self.sc+self.bh,
                                                   0.05*self.sc,Terrainer.colors[m])
                         arcade.draw_circle_filled((k[0][0]*0.75+k[0][1]*0.25-self.pos[0]+self.p/2)*self.sc+self.bw,(k[1][0]*0.75+k[1][1]*0.25-self.pos[1]+self.p/2)*self.sc+self.bh,
@@ -271,15 +313,47 @@ class Terrainer(arcade.Window):
         z.center_y = self.h/2+16*len(self.inv)-16-32*self.invslot
         arcade.draw_sprite(z)
         #Gamemode
-        t="creative" if self.creative else "normal"
+        t="x-ray" if self.mode==2 else "creative" if self.mode==1 else "normal"
         for j in range(len(t)):
             if t[j] != " ":
                 z = arcade.Sprite()
                 z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
                 z.scale = 2
-                z.center_x = self.w-len(t)*32+j*32
+                z.center_x = self.w-len(t)*24+j*24-72
                 z.center_y = self.h-32
                 arcade.draw_sprite(z)
+        #Mode switching
+        if self.modesw==0:
+            arcade.draw_circle_filled(self.w-36,self.h-36,24,bkg)
+        else:
+            arcade.draw_circle_filled(self.w-36,self.h-36,24,(57,255,20))
+            z = arcade.Sprite()
+            z.texture = arcade.load_texture("Font-white/tilen.png")
+            z.scale = 2
+            z.center_x = self.w-36
+            z.center_y = self.h-36
+            arcade.draw_sprite(z)
+            arcade.draw_circle_filled(self.w-36,self.h-84,24,(28,232,137))
+            z = arcade.Sprite()
+            z.texture = arcade.load_texture("Font-white/tilec.png")
+            z.scale = 2
+            z.center_x = self.w-36
+            z.center_y = self.h-84
+            arcade.draw_sprite(z)
+            arcade.draw_circle_filled(self.w-36,self.h-132,24,(0,210,255))
+            z = arcade.Sprite()
+            z.texture = arcade.load_texture("Font-white/tilex.png")
+            z.scale = 2
+            z.center_x = self.w-36
+            z.center_y = self.h-132
+            arcade.draw_sprite(z)
+        #Mode buttons
+        arcade.draw_circle_filled(36,self.h-36,24,bkg)
+        arcade.draw_polygon_filled([[24,self.h-36],[36,self.h-24],[48,self.h-36],[36,self.h-48]],(255,255,255,255))
+        if self.mode>0:
+            arcade.draw_circle_filled(36,self.h-108,24,bkg)
+            arcade.draw_circle_outline(30,self.h-102,6*2**0.5,(255,255,255,255))
+            arcade.draw_line(36,self.h-108,48,self.h-120,(255,255,255,255))
         #Coordinates background
         arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, 96, self.w-192, 192),bkg)
         arcade.draw_circle_filled(96,96,96,bkg)
@@ -413,7 +487,7 @@ class Terrainer(arcade.Window):
             pvel = Point(float(self.vel[0]), float(self.vel[1]))
             for _ in range(5):
                 ploc += pvel*delta*self.m/5
-                if not self.creative:
+                if self.mode!=2:
                     for _ in range(5): #multiplicity to (hopefully) fully resolve
                         iloc = Point(int(np.floor(ploc.x)),int(np.floor(ploc.y)))
                         lloc = ploc-iloc
@@ -448,7 +522,7 @@ class Terrainer(arcade.Window):
                         else:
                             sf=0
                             for i in range(12):
-                                if self.inv[i][1]==self.grid[(k,l)][1] and 0<self.inv[i][0]<64 and not(i==0 and self.creative):
+                                if self.inv[i][1]==self.grid[(k,l)][1] and 0<self.inv[i][0]<64:
                                     a = self.grid[(k,l)][0]
                                     self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
                                     self.inv[i][0] += a - self.grid[(k,l)][0]
@@ -492,21 +566,36 @@ class Terrainer(arcade.Window):
         ux = (x-self.w/2)/self.sc+self.pos[0]
         uy = (y-self.h/2)/self.sc+self.pos[1]
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
-        if self.st!=0 and (x-192)**2+(y-192)**2<=576:
+        if self.st!=0 and (x-192)**2+(y-192)**2<=576: #Exit button
             self.st=0
-        elif self.st==2 and abs(x-self.w+192)<=24 and self.h-168>=y>=168:
+        elif self.st==2 and abs(x-self.w+192)<=24 and self.h-168>=y>=168: #Fuzziness slider
             self.fuzz=min(1,max(0,1-(y-192)/(self.h-384)))
             self.adjfuzz=True
             self.updres=True
-        elif self.st==2 and modifiers == arcade.key.MOD_SHIFT:
+        elif self.st==2 and modifiers == arcade.key.MOD_SHIFT: #Developer's search bar
             self.searchst = 1-self.searchst
-        elif self.st==2 and self.w/2-(self.h-432)/2<=x<=self.w/2+(self.h-432)/2 and 216<=y<=self.h-216:
+        elif self.st==2 and self.w/2-(self.h-432)/2<=x<=self.w/2+(self.h-432)/2 and 216<=y<=self.h-216: #Selecting menu items
             gx=np.floor((6*x-3*self.w+3*self.h-1296)/(self.h-432))
             gy=5-np.floor((6*y-1296)/(self.h-432))
             i=int(gx+gy*6+self.searchpg*6)
             if i<len(self.searchres):
                 self.inv[self.invslot][0]=64
                 self.inv[self.invslot][1]=self.searchres[i]
+        elif self.modesw==0 and (x-self.w+36)**2+(y-self.h+36)**2<=576: #Mode switch button
+            self.modesw=1
+        elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+36)**2<=576: #Normal
+            self.modesw=0
+            self.mode=0
+        elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+84)**2<=576: #Creative
+            self.modesw=0
+            self.mode=1
+        elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+132)**2<=576: #Xray
+            self.modesw=0
+            self.mode=2
+        elif (x-36)**2+(y-self.h+36)**2<=576: #Inventory
+            self.st=1
+        elif (x-36)**2+(y-self.h+108)**2<=576 and self.mode>0: #Search bar
+            self.st=2
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
@@ -531,14 +620,12 @@ class Terrainer(arcade.Window):
             if button == arcade.key.UP:
                 self.vel[1]+=1
             #Inventory stuff
-            if button == arcade.key.F:
-                self.creative = 1 - self.creative
             if button == arcade.key.Z:
                 self.delt = 1
             if button == arcade.key.X:
                 self.inv[self.invslot][0] = 0
             #2 - creative, 1 - view inventory, 0 - play
-            if button == arcade.key.C and self.creative:
+            if button == arcade.key.C and self.mode>0:
                 self.st = 2
             if button == arcade.key.V:
                 self.st = 1
