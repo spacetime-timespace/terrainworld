@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from noiselib import rng, Simplex, np
 import time
 from PIL import Image
+import ast
 #Levenshtein distance
 ins=0.1
 dels=1.0
@@ -159,7 +160,8 @@ GRAY_GREEN=(128,192,64,255)
 LIGHT_GREEN=(192,255,128,255)
 DARK_GREEN=(64,128,0,255)
 BROWN=(128,96,0,255)
-TAN=(192,192,128,255)
+LIGHT_BROWN=(192,160,0,255)
+TAN=(192,160,128,255)
 BLACK=(0,0,0,255)
 DARK_GRAY=(64,64,64,255)
 GRAY=(128,128,128,255)
@@ -170,6 +172,32 @@ WHITE=(255,255,255,255)
 def load_grid(x,y,w,noise):
     return [min(1,max(-1,noise[0]((x/w,y/w))*5)),"grass" if noise[1]((x/w/3,y/w/3)) <= -0.25 else ("dirt" if noise[1]((x/w/3,y/w/3)) <= 0.25 else "stone")]
 
+base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+def convert64(value):
+    v=np.abs(value)
+    s=""
+    while v>0:
+        s=base64[v%64]+s
+        v//=64
+    if value<0:
+        s="-"+s
+    return s
+
+def devert64(string):
+    if string[0]=="-":
+        s=string[1:]
+    else:
+        s=string
+    v=0
+    for i in s:
+        v*=64
+        try:
+            v+=list(str).index(i)
+        except ValueError:
+            v+=0
+    if string[0]=="-":
+        v*=-1
 #The game!
 class Terrainer(arcade.Window):
     colors = {"grass":(192,255,128,255),
@@ -177,20 +205,75 @@ class Terrainer(arcade.Window):
               "stone":(128,128,128,255)}
     names = ["grass","dirt","stone"]
     textures = {
-        "grass":(LIGHT_GREEN,GREEN,GREEN,DARK_GREEN,GRAY_GREEN,LIGHT_GREEN,WHITE,LIGHT_GREEN),
-        "dirt":(BROWN,BROWN,BROWN,BLACK,BROWN,BLACK,BLACK,BROWN),
-        "stone":(GRAY,LIGHT_GRAY,WHITE,GRAY,BLACK,GRAY,DARK_GRAY,GRAY),
+        "grass":(LIGHT_GREEN,GREEN,GREEN,DARK_GREEN,GRAY_GREEN,LIGHT_GREEN,LIGHT_GREEN,LIGHT_GREEN),
+        "dirt":(BROWN,BROWN,BROWN,LIGHT_BROWN,BROWN,LIGHT_BROWN,LIGHT_BROWN,BROWN),
+        "stone":(GRAY,LIGHT_GRAY,WHITE,GRAY,LIGHT_GRAY,GRAY,DARK_GRAY,GRAY),
     }
     craftUI = {
-        "stone":[(3,3),[(0,0),(1,0),(2,0)],[(1,2)]]
+        "stone":[(3,3),[(0,0),(1,0),(2,0)],[(1,2)],[(0,1,"0230"),(1,1,"5534",(2,1,"2030"))]]
     }
     craftRecp = {
         "stone":{
-            ("grass","dirt","grass"):(1,[1,1,1],["grass"],[3])
+            ("grass","dirt","grass"):(1,[1,1,1],["grass"],[3],"0")
         }
     }
+    ritn=dict()
+    for a,b in craftRecp.items():
+        for i,j in b.items():
+            ritn[j[4]]=(a,i)
+    pages = {
+        "Main" : [
+            "Main",
+            [("[Movement]","Move"),("[Inventory]","Inv"),("[Items]","Item"),("[Modes]","Mode"),("[Mining & placing]","Edit"),("[Save]","Save")],
+            "Hello, creation. I live in a world quite different from yours. When I occasionally get the time, I might be able to write some tips for you \
+or add other stuff to your world. However, had you not found this menu, that would all be for nothing. Click on one of the buttons above \
+to learn more about your world.",
+            "0"
+        ],
+        "Inv" : [
+            "Inventory",
+            [("[Back]","Main")],
+            "The inventory slots take up the first row, namely 1234567890-=. If you want to move your stuff around, Enter picks up and drops your stuff. \
+If you only want to pick up or drop half, use Shift+Enter. The Z button is a slow delete and the X button is instant deletion. Click the \
+diamond icon for me to do a detailed inventory inspection on you.",
+            "1"
+        ],
+        "Item" : [
+            "Items",
+            [("[Back]","Main")],
+            "Items are very important in this world. They can be used to build or craft stuff (once I have time to add that to your world). There are \
+currently three items. Dirt, Grass, and Stone. In creative or x-ray modes, you can use the search icon to search for the items you want \
+and drag the slider to set how much error correction you can tolerate.",
+            "2"
+        ],
+        "Mode" : [
+            "Modes",
+            [("[Back]","Main")],
+            "There are three modes you can access by clicking the top-right button. N stands for the normal mode. C stands for creative, which gives you \
+access to the search bar. X stands for x-ray, which allows you to bypass physics.",
+            "3"
+        ],
+        "Edit" : [
+            "Mining & Placing",
+            [("[Back]","Main")],
+            "Guess what? I gave you the ability to change the world you live in! You can click somewhere to gather that resource, also this uses up the land. \
+You can also place down some resources by shift-clicking on where you want to place them, although you can only place it on an empty slot or \
+pile it on top of more of that thing.",
+            "4"
+        ],
+        "Save" : [
+            "Save",
+            [("[Back]","Main")],
+            "I tried cramming all the data in a file. The experiment proved successful, so now you can click that save button to cram the world into a file \
+It should start with <CODE> and end with </CODE>. (all caps) I had to run my hydraulic press for it to fit, so it might look weird.",
+            "5"
+        ]
+    }
+    pitn=dict()
+    for i,j in pages.items():
+        pitn[j[3]]=i
     Textures={}
-    def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[s5,s6], MSPEED=16, name="terrainer"):
+    def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[(4,5),(6,7)], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
         self.ctx.default_texture_filter = (arcade.gl.NEAREST, arcade.gl.NEAREST)
         self.ctx.default_texture_filter = (arcade.gl.NEAREST, arcade.gl.NEAREST)
@@ -232,6 +315,13 @@ class Terrainer(arcade.Window):
         self.updres=False
         self.searchst=0
         self.modesw=False
+        self.kpress=[]
+        self.pg="Main"
+        self.unlocked={"Main","Inv"}
+        self.recip={
+            "Stone":[]
+        }
+        self.sch=[]
     def on_resize(self,width,height):
         #Resize handling: re-set width, height
         self.w = width
@@ -260,9 +350,14 @@ class Terrainer(arcade.Window):
         arcade.draw_texture_rect(Terrainer.Textures[texture],arcade.XYWH(cx,cy,l,4),angle=-a)
     def on_draw(self):
         self.clear()
+        #Chunk borders
+        for i in range(int((self.pos[0]-self.p/2)//self.chs)+1,int((self.pos[0]+self.p/2)//self.chs)+1):
+            arcade.draw_line(i*self.chs*self.sc-self.pos[0]*self.sc+self.p/2*self.sc+self.bw,self.bh,i*self.chs*self.sc-self.pos[0]*self.sc+self.p/2*self.sc+self.bw,self.bh+self.sc*self.p,WHITE,2)
+        for i in range(int((self.pos[1]-self.p/2)//self.chs)+1,int((self.pos[1]+self.p/2)//self.chs)+1):
+            arcade.draw_line(self.bw,i*self.chs*self.sc-self.pos[1]*self.sc+self.p/2*self.sc+self.bh,self.bw+self.sc*self.p,i*self.chs*self.sc-self.pos[1]*self.sc+self.p/2*self.sc+self.bh,WHITE,2)
         #Draws all segments
-        for i in range(int(self.pos[0]-self.p/2-1),int(self.pos[0]+self.p/2+1)):
-            for j in range(int(self.pos[1]-self.p/2-1),int(self.pos[1]+self.p/2+1)):
+        for i in range(int(self.pos[0]-self.p/2+1),int(self.pos[0]+self.p/2)):
+            for j in range(int(self.pos[1]-self.p/2+1),int(self.pos[1]+self.p/2)):
                 try:
                     m = self.lines[(i,j)][1]
                     for k in self.lines[(i,j)][0]:
@@ -350,10 +445,21 @@ class Terrainer(arcade.Window):
         #Mode buttons
         arcade.draw_circle_filled(36,self.h-36,24,bkg)
         arcade.draw_polygon_filled([[24,self.h-36],[36,self.h-24],[48,self.h-36],[36,self.h-48]],(255,255,255,255))
+        arcade.draw_circle_filled(36,self.h-108,24,bkg)
+        arcade.draw_polygon_outline([[24,self.h-96],[24,self.h-120],[48,self.h-120],[48,self.h-96]],(255,255,255,255))
+        arcade.draw_polygon_filled([[24,self.h-96],[24,self.h-120],[30,self.h-120],[30,self.h-96]],(255,255,255,255))
+        arcade.draw_circle_filled(36,self.h-180,24,bkg)
+        arcade.draw_polygon_outline([[24,self.h-168],[24,self.h-192],[48,self.h-192],[48,self.h-168]],(255,255,255,255))
+        arcade.draw_line(36,self.h-168,36,self.h-192,(255,255,255,255))
+        arcade.draw_line(24,self.h-180,48,self.h-180,(255,255,255,255))
+        arcade.draw_circle_filled(36,self.h-256,24,bkg)
+        arcade.draw_polygon_filled([[24,self.h-250],[24,self.h-244],[42,self.h-244],[48,self.h-250]],(255,255,255,255))
+        arcade.draw_polygon_outline([[24,self.h-268],[24,self.h-250],[48,self.h-250],[48,self.h-268]],(255,255,255,255))
+        arcade.draw_circle_filled(36,self.h-259,6,(255,255,255,255))
         if self.mode>0:
-            arcade.draw_circle_filled(36,self.h-108,24,bkg)
-            arcade.draw_circle_outline(30,self.h-102,6*2**0.5,(255,255,255,255))
-            arcade.draw_line(36,self.h-108,48,self.h-120,(255,255,255,255))
+            arcade.draw_circle_filled(36,self.h-328,24,bkg)
+            arcade.draw_circle_outline(30,self.h-322,6*2**0.5,(255,255,255,255))
+            arcade.draw_line(36,self.h-328,48,self.h-340,(255,255,255,255))
         #Coordinates background
         arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, 96, self.w-192, 192),bkg)
         arcade.draw_circle_filled(96,96,96,bkg)
@@ -455,16 +561,51 @@ class Terrainer(arcade.Window):
                                     z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/24-(self.h-432)/6*j
                                     z.color = (57-57*v,255-45*v,20+235*v,255)
                                     arcade.draw_sprite(z)
+        if self.st==3:
+            arcade.draw_circle_filled(192,192,24,(255,128,128,255))
+            dat=Terrainer.pages[self.pg]
+            rows=3+len(dat[1])+np.ceil(len(dat[2])/64)
+            size=min((self.h-384)/rows/16,(self.w-384)/64/12)
+            t=dat[0]
+            for j in range(len(t)):
+                if t[j] != " ":
+                    z = arcade.Sprite()
+                    z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                    z.scale = size*2
+                    z.center_x = 192+size*12+24*size*j
+                    z.center_y = self.h-192-size*16
+                    arcade.draw_sprite(z)
+            for i in range(len(dat[1])):
+                if dat[1][i][1] in self.unlocked:
+                    t=dat[1][i][0]
+                    for j in range(len(t)):
+                        if t[j] != " ":
+                            z = arcade.Sprite()
+                            z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                            z.scale = size
+                            z.center_x = 192+size*6+12*size*j
+                            z.center_y = self.h-192-size*40-size*i*16
+                            arcade.draw_sprite(z)
+            t=dat[2]
+            for j in range(len(t)):
+                if t[j] != " ":
+                    z = arcade.Sprite()
+                    z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                    z.scale = size
+                    z.center_x = 192+size*6+12*size*(j%64)
+                    z.center_y = self.h-192-size*56-size*len(dat[1])*16-size*16*(j//64)
+                    arcade.draw_sprite(z)
     def on_update(self,delta):
         self.nx=int(round(self.pos[0]))
         self.ny=int(round(self.pos[1]))
         opos=self.pos
+        delta=min(delta,0.02)
         #Loading chunks
         if self.st == 0:
             if self.delt:
                 self.inv[self.invslot][0] = max(0,self.inv[self.invslot][0]-self.sp*delta)
-            for i in range(int((self.pos[0]-self.p)//self.chs)-1,int((self.pos[0]+self.p)//self.chs)+1):
-                for j in range(int((self.pos[1]-self.p)//self.chs)-1,int((self.pos[1]+self.p)//self.chs)+1):
+            for i in range(int((self.pos[0]-self.p/2)//self.chs)-1,int((self.pos[0]+self.p/2)//self.chs)+2):
+                for j in range(int((self.pos[1]-self.p/2)//self.chs)-1,int((self.pos[1]+self.p/2)//self.chs)+2):
                     if (i,j) not in self.ch:
                         self.ch.append((i,j))
                         #Calculating terrain
@@ -472,7 +613,7 @@ class Terrainer(arcade.Window):
                             for l in range(self.chs+1):
                                 wx=i*self.chs+k
                                 wy=j*self.chs+l
-                                self.grid[(wx,wy)] = load_grid(wx,wy,self.z,self.n)
+                                self.grid[(wx,wy)] = load_grid(wx,wy,self.z,[Simplex(2,rng(i)) for i in self.n])
                         #Initializing segments
                         for k in range(self.chs):
                             for l in range(self.chs):
@@ -482,6 +623,16 @@ class Terrainer(arcade.Window):
                                     self.lines[(wx,wy)] = ms(0,(self.grid[(wx,wy)],self.grid[(wx+1,wy)],self.grid[(wx,wy+1)],self.grid[(wx+1,wy+1)]),[wx,wy])
                                 except KeyError:
                                     0
+                    if (i,j) in self.sch:
+                        for k in range(self.chs):
+                            for l in range(self.chs):
+                                wx=i*self.chs+k
+                                wy=j*self.chs+l
+                                try:
+                                    self.lines[(wx,wy)] = ms(0,(self.grid[(wx,wy)],self.grid[(wx+1,wy)],self.grid[(wx,wy+1)],self.grid[(wx+1,wy+1)]),[wx,wy])
+                                except KeyError:
+                                    0
+                        self.sch.remove((i,j))
             #Colliding
             ploc = Point(float(self.pos[0]), float(self.pos[1]))
             pvel = Point(float(self.vel[0]), float(self.vel[1]))
@@ -510,6 +661,9 @@ class Terrainer(arcade.Window):
             #Testing for minability, mining
             if self.cmouse[2]!=0:
                 try:
+                    if "Edit" in self.unlocked:
+                        self.unlocked.add("Mode")
+                        self.unlocked.add("Save")
                     k = self.cmouse[0]
                     l = self.cmouse[1]
                     if self.cmouse[2] == 1:
@@ -561,6 +715,8 @@ class Terrainer(arcade.Window):
                         self.searchres.append(i)
                 self.searchres.sort(key=lambda x: levenshtein(self.searchstr.lower(),x))
                 self.updres = 0
+        self.vel[0]=("RIGHT" in self.kpress)-("LEFT" in self.kpress)
+        self.vel[1]=("UP" in self.kpress)-("DOWN" in self.kpress)
     def on_mouse_press(self,x,y,buttons,modifiers):
         #Calculating click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
@@ -594,8 +750,89 @@ class Terrainer(arcade.Window):
             self.mode=2
         elif (x-36)**2+(y-self.h+36)**2<=576: #Inventory
             self.st=1
-        elif (x-36)**2+(y-self.h+108)**2<=576 and self.mode>0: #Search bar
+        elif (x-36)**2+(y-self.h+348)**2<=576 and self.mode>0: #Search bar
             self.st=2
+        elif (x-36)**2+(y-self.h+108)**2<=576: #Manual
+            self.st=3
+        elif self.st==3:
+            dat=Terrainer.pages[self.pg]
+            rows=3+len(dat[1])+np.ceil(len(dat[2])/64)
+            size=min((self.h-384)/rows/16,(self.w-384)/64/12)
+            row=np.floor((self.h-192-y)/size/16)-2
+            if 0<=row<len(dat[1]):
+                if dat[1][int(row)][1] in self.unlocked:
+                    self.pg=dat[1][int(row)][1]
+        elif (x-36)**2+(y-self.h+256)**2<=576: #Saving
+            i=input("save/load/new? ")
+            if i=="save":
+                s=f"<CODE>v1〄{self.pos[0]:-.2f}。{self.pos[1]:-.2f}。{self.mode}。{self.p}。{self.chs}。{self.z}。{self.n}〃{"。".join([Terrainer.pages[i][3] for i in self.unlocked])}〃"
+                rlist=[",".join([Terrainer.craftRecp[i][j][4] for j in self.recip[i]]) for i in self.recip.keys()]
+                s+="。".join([i for i in rlist if i])+"〃"
+                s+="。".join([f"{i[0]:-.2f}、{i[1]}" for i in self.inv])+"〃"
+                s+=f"{self.mqty}。{self.mthing}〄"
+                s+="〃".join([f"{c[0]}。{c[1]}" for c in self.ch])+"〄"
+                world="〃".join([f"{i[0]}。{i[1]}。{j[1]}。{convert64(int(j[0]*1000))}" for i,j in self.grid.items()])
+                s+=world+"〄</CODE>"
+                path=input("Where do you want to cram the universe? ")
+                f = open(path+".txt",mode="a")
+                f.write(s)
+                print(f"We managed to store the universe at {path}")
+            if i=="load":
+                path=input("Where is your compacted universe? ")
+                try:
+                    f = open(path+".txt","r")
+                except FileNotFoundError:
+                    print("Sorry, that file doesn't exist")
+                else:
+                    s = f.read()
+                    i0 = s.find("<CODE>")+6
+                    if i0!=-1:
+                        i1 = s.find("</CODE>",i0)
+                        if i1!=-1:
+                            s=s[i0:i1]
+                            l0=s.split("〄")
+                            if l0[0]=="v1":
+                                basic0=l0[1].split("〃")
+                                consts=basic0[0].split("。")
+                                self.pos=(float(consts[0]),float(consts[1]))
+                                self.mode=int(consts[2])
+                                self.p=int(consts[3])
+                                self.chs=int(consts[4])
+                                self.z=float(consts[5])
+                                self.n=ast.literal_eval(consts[6])
+                                pages=basic0[1].split("。")
+                                self.unlocked=[Terrainer.pitn[i] for i in pages]
+                                recs=basic0[2].split("。")
+                                for i in Terrainer.craftRecp.keys():
+                                    self.recip[i]=[]
+                                for i in recs:
+                                    if i!="":
+                                        a,b = Terrainer.ritn[i]
+                                        self.recip[a].append(b)
+                                invlist=basic0[3].split("。")
+                                self.inv=[]
+                                for i in invlist:
+                                    a=i.split("、")
+                                    self.inv.append([float(a[0]),a[1]])
+                                istore=basic0[4].split("。")
+                                self.mqty=float(istore[0])
+                                self.mthing=istore[1]
+                                chunks=l0[2].split("〃")
+                                self.ch=[]
+                                for i in chunks:
+                                    a=i.split("。")
+                                    self.ch.append(int(i[0]),int(i[1]))
+                                self.sch=self.ch.copy()
+                                world=l0[3].split("〃")
+                                self.grid=dict()
+                                self.lines=dict()
+                                for i in world:
+                                    a=i.split("。")
+                                    self.grid[int(a[0]),int(a[1])]=(devert64(a[3])/1000,a[2])
+                        else:
+                            print("Did you use the compacting machine correctly?")
+                    else:
+                        print("Did you use the compacting machine correctly?")
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
@@ -612,13 +849,13 @@ class Terrainer(arcade.Window):
         #Checking movement
         if self.st!=2:
             if button == arcade.key.LEFT:
-                self.vel[0]-=1
+                self.kpress.append("LEFT")
             if button == arcade.key.RIGHT:
-                self.vel[0]+=1
+                self.kpress.append("RIGHT")
             if button == arcade.key.DOWN:
-                self.vel[1]-=1
+                self.kpress.append("DOWN")
             if button == arcade.key.UP:
-                self.vel[1]+=1
+                self.kpress.append("UP")
             #Inventory stuff
             if button == arcade.key.Z:
                 self.delt = 1
@@ -658,6 +895,9 @@ class Terrainer(arcade.Window):
                 self.invslot = 11
             #Moving
             if button == arcade.key.ENTER:
+                if "Inv" in self.unlocked:
+                    self.unlocked.add("Item")
+                    self.unlocked.add("Edit")
                 if modifiers == arcade.key.MOD_SHIFT:
                     if self.mqty > 0 and self.mthing == self.inv[self.invslot][1]:
                         if self.mqty/2 + self.inv[self.invslot][0] >= 64:
@@ -839,16 +1079,19 @@ class Terrainer(arcade.Window):
             
     def on_key_release(self,button,modifiers):
         #Un-moving
-        if button == arcade.key.LEFT:
-            self.vel[0]+=1
-        if button == arcade.key.RIGHT:
-            self.vel[0]-=1
-        if button == arcade.key.DOWN:
-            self.vel[1]+=1
-        if button == arcade.key.UP:
-            self.vel[1]-=1
-        if button == arcade.key.Z:
-            self.delt = 0
+        try:
+            if button == arcade.key.LEFT:
+                self.kpress.remove("LEFT")
+            if button == arcade.key.RIGHT:
+                self.kpress.remove("RIGHT")
+            if button == arcade.key.DOWN:
+                self.kpress.remove("DOWN")
+            if button == arcade.key.UP:
+                self.kpress.remove("UP")
+            if button == arcade.key.Z:
+                self.delt = 0
+        except ValueError:
+            0
 def main():
     #Setting up game
     try:
