@@ -5,11 +5,13 @@ from noiselib import rng, Simplex, np
 import time
 from PIL import Image
 import ast
+import base64 as b64
 #Levenshtein distance
 ins=0.1
 dels=1.0
 subs=1.0
 trans=0.5
+textures="new-textures/"
 def levenshtein(s1, s2):
     if len(s1) == 0:
         return 0
@@ -193,11 +195,18 @@ def devert64(string):
     for i in s:
         v*=64
         try:
-            v+=list(str).index(i)
+            v+=list(string).index(i)
         except ValueError:
             v+=0
     if string[0]=="-":
         v*=-1
+    return v
+
+def reveal_text(shielded_str):
+    try:
+        return b64.b64decode(shielded_str).decode('utf-8')
+    except Exception:
+        return "Error: Data corrupted in the Hydraulic Press."
 #The game!
 class Terrainer(arcade.Window):
     colors = {"grass":(192,255,128,255),
@@ -210,7 +219,7 @@ class Terrainer(arcade.Window):
         "stone":(GRAY,LIGHT_GRAY,WHITE,GRAY,LIGHT_GRAY,GRAY,DARK_GRAY,GRAY),
     }
     craftUI = {
-        "stone":[(3,3),[(0,0),(1,0),(2,0)],[(1,2)],[(0,1,"0230"),(1,1,"5534",(2,1,"2030"))]]
+        "stone":[(3,3),[(0,0),(1,0),(2,0)],[(1,2)],[(0,1,"0230"),(1,1,"5534"),(2,1,"2030")]]
     }
     craftRecp = {
         "stone":{
@@ -256,8 +265,8 @@ class Terrainer(arcade.Window):
         "Edit" : [
             "Mining & Placing",
             [("[Back]","Main")],
-            ("The world is pretty boring when you have nothing. Guess what? I gave you the ability to change the world you live in! You can click somewhere to gather that resource, also this uses up the land."
-            "You can also place down some resources by shift-clicking on where you want to place them, although you can only place it on an empty slot or"
+            ("The world is pretty boring when you have nothing. Guess what? I gave you the ability to change the world you live in! You can click somewhere to gather that resource, also this uses up the land. "
+            "You can also place down some resources by shift-clicking on where you want to place them, although you can only place it on an empty slot or "
             "pile it on top of more of that thing."),
             "4"
         ],
@@ -265,16 +274,22 @@ class Terrainer(arcade.Window):
             "Save",
             [("[Back]","Main")],
             ("Inspired by your curiosity, I tried to see if I could make you and your world live longer. I tried cramming all the data in a file. The experiment proved successful, so now you can click that save button to cram the world into a file "
-            "It should start with <CODE> and end with </CODE>. (all caps) I had to run my hydraulic press for it to fit, so it might look weird. And once you have one version of your world, you can run it again and again"
+            "It should start with <CODE> and end with </CODE>. (all caps) I had to run my hydraulic press for it to fit, so it might look weird. And once you have one version of your world, you can run it again and again "
             "Also, you now can make a world to suit your needs. Just remember: the world might change, but your knowledge doesn't"),
             "5"
         ],
         "End" : [
             "End",
             [],
-            ("Written words are a message to the future. The person reading it is always further ahead in time than the person writing it. I don't know what date you are reading these words, where you are, or what you're trying to do."
-            "But wherever you are and whatever problems you're trying to solve, I hope that these messages have helped. Keep building, and I will always be there to help you. I am spacetime-timespace on github, and good luck with your future."),
-            "42"
+            (reveal_text("V3JpdHRlbiB3b3JkcyBhcmUgYSBtZXNzYWdlIHRvIHRoZSBmdXR1cmUuIFRoZSBwZXJzb24gcmVhZGluZyBpdCBpcyBhbHdheXMgZnVydGhlciBhaGVhZCBpbiB0aW1lIHRoYW4gdGhlIHBlcnNvbiB3cml0aW5nIGl0LiBJIGRvbid0IGtub3cgd2hhdCBkYXRlIHlvdSBhcmUgcmVhZGluZyB0aGVzZSB3b3Jkcywgd2hlcmUgeW91IGFyZSwgb3Igd2hhdCB5b3UncmUgdHJ5aW5nIHRvIGRvLkJ1dCB3aGVyZXZlciB5b3UgYXJlIGFuZCB3aGF0ZXZlciBwcm9ibGVtcyB5b3UncmUgdHJ5aW5nIHRvIHNvbHZlLCBJIGhvcGUgdGhhdCB0aGVzZSBtZXNzYWdlcyBoYXZlIGhlbHBlZC4gS2VlcCBidWlsZGluZywgYW5kIEkgd2lsbCBhbHdheXMgYmUgdGhlcmUgdG8gaGVscCB5b3UuIEkgYW0gc3BhY2V0aW1lLXRpbWVzcGFjZSBvbiBnaXRodWIsIGFuZCBnb29kIGx1Y2sgd2l0aCB5b3VyIGZ1dHVyZS5PaCwgYW5kIGFsc28gdGhpcyBpc24ndCB0aGUgZW5kIG9mIHlvdXIgam91cm5leS4gVGhvc2UgbGFzdCBsaW5lcyB3ZXJlIGZyb20gc29tZSBib29rLiBIb3cgbWFueSBjaGFwdGVycyBkb2VzIGl0IGhhdmU/")),
+            #POV that one line of text that just seems to never end
+            str(int(np.log10(float(devert64("C3q8YnBQMFrfFKPZ5AAAAAAA")))))
+        ],
+        "Actual End" : [
+            "Recruitment",
+            [],
+            (reveal_text("QW5kIHlvdSBhY3R1YWxseSBzb2x2ZWQgdGhlIGxhc3QgcHV6emxlISBXYW50IHRvIGhlbHAgY29sbGFib3JhdGU/IEknbSBzcGFjdGltZS10aW1lc3BhY2Ugb24gZ2l0aHViLCBhbmQgdGhpcyByZXBvIGlzIHRlcnJhaW53b3JsZC4=")),
+            str(int(np.log10(float(devert64("IE/OXj4lAmEQAAAA")))))
         ],
     }
     pitn=dict()
@@ -283,10 +298,9 @@ class Terrainer(arcade.Window):
     Textures={}
     def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[(4,5),(6,7)], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
-        self.ctx.default_texture_filter = (arcade.gl.NEAREST, arcade.gl.NEAREST)
-        self.ctx.default_texture_filter = (arcade.gl.NEAREST, arcade.gl.NEAREST)
         self.set_vsync(True)
         #Initializing variables...
+        self.s = 64
         self.h = HEIGHT
         self.w = WIDTH
         self.p = PIX
@@ -330,6 +344,10 @@ class Terrainer(arcade.Window):
             "Stone":[]
         }
         self.sch=[]
+        self.scing=0
+        self.ctable="NONE"
+        self.cstate=[]
+        self.cpos=0
     def on_resize(self,width,height):
         #Resize handling: re-set width, height
         self.w = width
@@ -385,30 +403,30 @@ class Terrainer(arcade.Window):
         #Drawing your inventory
         for i in range(len(self.inv)):
             z = arcade.Sprite()
-            z.texture = arcade.load_texture("itembox.png")
-            z.scale = 2
+            z.texture = arcade.load_texture(textures+"itembox.png")
+            z.scale = 32/self.s
             z.center_x = self.w-16
             z.center_y = self.h/2+16*len(self.inv)-16-32*i
             arcade.draw_sprite(z)
             if self.inv[i][0] == 0:
                 continue
             z = arcade.Sprite()
-            z.texture = arcade.load_texture("tiles/"+self.inv[i][1]+".png")
-            z.scale = 1
+            z.texture = arcade.load_texture(textures+"tiles/"+self.inv[i][1]+".png")
+            z.scale = 16/self.s
             z.center_x = self.w-16
             z.center_y = self.h/2+16*len(self.inv)-16-32*i
             arcade.draw_sprite(z)
             c = len(str(int(self.inv[i][0])))
             for j in range(c):
                 x = str(int(self.inv[i][0]))[j]
-                z.texture = arcade.load_texture("Font-white/tile"+x+".png")
-                z.scale = 0.5
+                z.texture = arcade.load_texture(textures+"Font-white/tile"+x+".png")
+                z.scale = 8/self.s
                 z.center_x = self.w-16-c*2+2+4*j
                 z.center_y = self.h/2+16*len(self.inv)-16-32*i
                 arcade.draw_sprite(z)
         z = arcade.Sprite()
-        z.texture = arcade.load_texture("selector.png")
-        z.scale = 2
+        z.texture = arcade.load_texture(textures+"selector.png")
+        z.scale = 32/self.s
         if self.mqty == 0:
             z.center_x = self.w-48
         else:
@@ -420,8 +438,8 @@ class Terrainer(arcade.Window):
         for j in range(len(t)):
             if t[j] != " ":
                 z = arcade.Sprite()
-                z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
-                z.scale = 2
+                z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
+                z.scale = 32/self.s
                 z.center_x = self.w-len(t)*24+j*24-72
                 z.center_y = self.h-32
                 arcade.draw_sprite(z)
@@ -431,22 +449,22 @@ class Terrainer(arcade.Window):
         else:
             arcade.draw_circle_filled(self.w-36,self.h-36,24,(57,255,20))
             z = arcade.Sprite()
-            z.texture = arcade.load_texture("Font-white/tilen.png")
-            z.scale = 2
+            z.texture = arcade.load_texture(textures+"Font-white/tilen.png")
+            z.scale = 32/self.s
             z.center_x = self.w-36
             z.center_y = self.h-36
             arcade.draw_sprite(z)
             arcade.draw_circle_filled(self.w-36,self.h-84,24,(28,232,137))
             z = arcade.Sprite()
-            z.texture = arcade.load_texture("Font-white/tilec.png")
-            z.scale = 2
+            z.texture = arcade.load_texture(textures+"Font-white/tilec.png")
+            z.scale = 32/self.s
             z.center_x = self.w-36
             z.center_y = self.h-84
             arcade.draw_sprite(z)
             arcade.draw_circle_filled(self.w-36,self.h-132,24,(0,210,255))
             z = arcade.Sprite()
-            z.texture = arcade.load_texture("Font-white/tilex.png")
-            z.scale = 2
+            z.texture = arcade.load_texture(textures+"Font-white/tilex.png")
+            z.scale = 32/self.s
             z.center_x = self.w-36
             z.center_y = self.h-132
             arcade.draw_sprite(z)
@@ -460,14 +478,14 @@ class Terrainer(arcade.Window):
         arcade.draw_polygon_outline([[24,self.h-168],[24,self.h-192],[48,self.h-192],[48,self.h-168]],(255,255,255,255))
         arcade.draw_line(36,self.h-168,36,self.h-192,(255,255,255,255))
         arcade.draw_line(24,self.h-180,48,self.h-180,(255,255,255,255))
-        arcade.draw_circle_filled(36,self.h-256,24,bkg)
-        arcade.draw_polygon_filled([[24,self.h-250],[24,self.h-244],[42,self.h-244],[48,self.h-250]],(255,255,255,255))
-        arcade.draw_polygon_outline([[24,self.h-268],[24,self.h-250],[48,self.h-250],[48,self.h-268]],(255,255,255,255))
-        arcade.draw_circle_filled(36,self.h-259,6,(255,255,255,255))
+        arcade.draw_circle_filled(36,self.h-252,24,bkg)
+        arcade.draw_polygon_filled([[24,self.h-246],[24,self.h-240],[42,self.h-240],[48,self.h-246]],(255,255,255,255))
+        arcade.draw_polygon_outline([[24,self.h-264],[24,self.h-246],[48,self.h-246],[48,self.h-264]],(255,255,255,255))
+        arcade.draw_circle_filled(36,self.h-253,6,(255,255,255,255))
         if self.mode>0:
-            arcade.draw_circle_filled(36,self.h-328,24,bkg)
-            arcade.draw_circle_outline(30,self.h-322,6*2**0.5,(255,255,255,255))
-            arcade.draw_line(36,self.h-328,48,self.h-340,(255,255,255,255))
+            arcade.draw_circle_filled(36,self.h-324,24,bkg)
+            arcade.draw_circle_outline(30,self.h-318,6*2**0.5,(255,255,255,255))
+            arcade.draw_line(36,self.h-322,48,self.h-336,(255,255,255,255))
         #Coordinates background
         arcade.draw_rect_filled(arcade.rect.XYWH(self.w/2, 96, self.w-192, 192),bkg)
         arcade.draw_circle_filled(96,96,96,bkg)
@@ -485,8 +503,8 @@ class Terrainer(arcade.Window):
         c=len(s)
         for j in range(c):
             x = s[j]
-            z.texture = arcade.load_texture("Font-white/tile"+x+".png")
-            z.scale = 4
+            z.texture = arcade.load_texture(textures+"Font-white/tile"+x+".png")
+            z.scale = 64/self.s
             z.center_x = self.w/2-c*24+16+48*j
             z.center_y = 96
             arcade.draw_sprite(z)
@@ -494,16 +512,16 @@ class Terrainer(arcade.Window):
             arcade.draw_circle_filled(192,192,24,(255,128,128,255))
             for i in range(12):
                 z = arcade.Sprite()
-                z.texture = arcade.load_texture("itembox.png")
-                z.scale = (self.h-384)/12/16
+                z.texture = arcade.load_texture(textures+"itembox.png")
+                z.scale = (self.h-384)/12/self.s
                 z.center_x = 192
                 z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                 arcade.draw_sprite(z)
                 if self.inv[i][0] == 0:
                     continue
                 z = arcade.Sprite()
-                z.texture = arcade.load_texture("tiles/"+self.inv[i][1]+".png")
-                z.scale = (self.h-384)/12/32
+                z.texture = arcade.load_texture(textures+"tiles/"+self.inv[i][1]+".png")
+                z.scale = (self.h-384)/24/self.s
                 z.center_x = 192
                 z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                 arcade.draw_sprite(z)
@@ -512,8 +530,8 @@ class Terrainer(arcade.Window):
                 for j in range(len(t)):
                     if t[j] != " ":
                         z = arcade.Sprite()
-                        z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
-                        z.scale = (self.h-384)/12/32
+                        z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
+                        z.scale = (self.h-384)/24/self.s
                         z.center_x = 256 + j*(self.h-384)/24
                         z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                         arcade.draw_sprite(z)
@@ -523,8 +541,8 @@ class Terrainer(arcade.Window):
             for j in range(len(t)):
                 if t[j] != " ":
                     z = arcade.Sprite()
-                    z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
-                    z.scale = 2
+                    z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
+                    z.scale = 32/self.s
                     z.center_x = 192 + j*24
                     z.center_y = self.h-192
                     arcade.draw_sprite(z)
@@ -536,14 +554,14 @@ class Terrainer(arcade.Window):
                     if 6*self.searchpg+6*j+i<len(self.searchres):
                         b=self.searchres[int(6*self.searchpg+6*j+i)]
                         z = arcade.Sprite()
-                        z.texture = arcade.load_texture("itembox.png")
-                        z.scale = (self.h-432)/6/16
+                        z.texture = arcade.load_texture(textures+"itembox.png")
+                        z.scale = (self.h-432)/6/self.s
                         z.center_x = self.w/2-(self.h-432)/2+(self.h-432)/12+(self.h-432)/6*i
                         z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/12-(self.h-432)/6*j
                         arcade.draw_sprite(z)
                         z = arcade.Sprite()
-                        z.texture = arcade.load_texture("Tiles/"+b+".png")
-                        z.scale = (self.h-432)/6/32
+                        z.texture = arcade.load_texture(textures+"Tiles/"+b+".png")
+                        z.scale = (self.h-432)/12/self.s
                         z.center_x = self.w/2-(self.h-432)/2+(self.h-432)/12+(self.h-432)/6*i
                         z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/12-(self.h-432)/6*j
                         arcade.draw_sprite(z)
@@ -552,8 +570,8 @@ class Terrainer(arcade.Window):
                             for k in range(len(t)):
                                 if t[k] != " ":
                                     z = arcade.Sprite()
-                                    z.texture = arcade.load_texture("Font-white/tile"+t[k]+".png")
-                                    z.scale = (self.h-432)/144/len(t)
+                                    z.texture = arcade.load_texture(textures+"Font-white/tile"+t[k]+".png")
+                                    z.scale = (self.h-432)/9/self.s/len(t)
                                     z.center_x = self.w/2-(self.h-432)/2+(self.h-432)/12+(self.h-432)/6*i-(self.h-432)/18+(self.h-432)/18/len(t)+(self.h-432)/9/len(t)*k
                                     z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/8-(self.h-432)/6*j
                                     arcade.draw_sprite(z)
@@ -563,8 +581,8 @@ class Terrainer(arcade.Window):
                             for k in range(len(t)):
                                 if t[k] != " ":
                                     z = arcade.Sprite()
-                                    z.texture = arcade.load_texture("Font-white/tile"+t[k]+".png")
-                                    z.scale = (self.h-432)/144/len(t)
+                                    z.texture = arcade.load_texture(textures+"Font-white/tile"+t[k]+".png")
+                                    z.scale = (self.h-432)/9/self.s/len(t)
                                     z.center_x = self.w/2-(self.h-432)/2+(self.h-432)/12+(self.h-432)/6*i-(self.h-432)/18+(self.h-432)/18/len(t)+(self.h-432)/9/len(t)*k
                                     z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/24-(self.h-432)/6*j
                                     z.color = (57-57*v,255-45*v,20+235*v,255)
@@ -573,12 +591,12 @@ class Terrainer(arcade.Window):
             arcade.draw_circle_filled(192,192,24,(255,128,128,255))
             dat=Terrainer.pages[self.pg]
             rows=3+len(dat[1])+np.ceil(len(dat[2])/64)
-            size=min((self.h-384)/rows/16,(self.w-384)/64/12)
+            size=min((self.h-384)/rows/self.s,(self.w-384)/48/self.s)
             t=dat[0]
             for j in range(len(t)):
                 if t[j] != " ":
                     z = arcade.Sprite()
-                    z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                    z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
                     z.scale = size*2
                     z.center_x = 192+size*12+24*size*j
                     z.center_y = self.h-192-size*16
@@ -589,7 +607,7 @@ class Terrainer(arcade.Window):
                     for j in range(len(t)):
                         if t[j] != " ":
                             z = arcade.Sprite()
-                            z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                            z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
                             z.scale = size
                             z.center_x = 192+size*6+12*size*j
                             z.center_y = self.h-192-size*40-size*i*16
@@ -598,11 +616,71 @@ class Terrainer(arcade.Window):
             for j in range(len(t)):
                 if t[j] != " ":
                     z = arcade.Sprite()
-                    z.texture = arcade.load_texture("Font-white/tile"+t[j]+".png")
+                    z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
                     z.scale = size
                     z.center_x = 192+size*6+12*size*(j%64)
                     z.center_y = self.h-192-size*56-size*len(dat[1])*16-size*16*(j//64)
                     arcade.draw_sprite(z)
+        if self.st==4:
+            UIdat=Terrainer.craftUI[self.ctable]
+            Recpdat=Terrainer.craftRecp[self.ctable]
+            rows,cols=UIdat[0]
+            size=min((self.h-384)/rows/self.s,(self.w-384)/cols/self.s)
+            bw=self.w/2-size*cols*self.s/2
+            bh=self.h/2-size*rows*self.s/2
+            for i,j in zip(UIdat[1],self.cstate[0]):
+                z = arcade.Sprite()
+                z.texture = arcade.load_texture(textures+"itembox.png")
+                z.scale = size
+                z.color=(128,255,128)
+                z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                arcade.draw_sprite(z)
+                if j[1]>0:
+                    z = arcade.Sprite()
+                    z.texture = arcade.load_texture(textures+"Tiles/"+j[0]+".png")
+                    z.scale = size/2
+                    z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                    z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                    arcade.draw_sprite(z)
+                    t=f"{j[1]:.1f}"
+                    for j in range(len(t)):
+                        x = t[j]
+                        z.texture = arcade.load_texture(textures+"Font-white/tile"+x+".png")
+                        z.scale = size/2/len(t)
+                        z.center_x = bw+i[0]*self.s*size+self.s/2*size-size/8*self.s+size/8/len(t)*self.s+j*size/4/len(t)*self.s
+                        z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                        arcade.draw_sprite(z)
+            for i,j in zip(UIdat[2],self.cstate[1]):
+                z = arcade.Sprite()
+                z.texture = arcade.load_texture(textures+"itembox.png")
+                z.scale = size
+                z.color=(128,128,255)
+                z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                arcade.draw_sprite(z)
+                if j[1]>0:
+                    z = arcade.Sprite()
+                    z.texture = arcade.load_texture(textures+"Tiles/"+j[0]+".png")
+                    z.scale = size/2
+                    z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                    z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                    arcade.draw_sprite(z)
+                    t=f"{j[1]:.1f}"
+                    for j in range(len(t)):
+                        x = t[j]
+                        z.texture = arcade.load_texture(textures+"Font-white/tile"+x+".png")
+                        z.scale = size/2/len(t)
+                        z.center_x = bw+i[0]*self.s*size+self.s/2*size-size/8*self.s+size/8/len(t)*self.s+j*size/4/len(t)*self.s
+                        z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                        arcade.draw_sprite(z)
+            for i in UIdat[3]:
+                z = arcade.Sprite()
+                z.texture = arcade.load_texture(textures+"Background/"+i[2]+".png")
+                z.scale = size
+                z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                arcade.draw_sprite(z)
     def on_update(self,delta):
         self.nx=int(round(self.pos[0]))
         self.ny=int(round(self.pos[1]))
@@ -732,139 +810,152 @@ class Terrainer(arcade.Window):
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
         if self.st!=0 and (x-192)**2+(y-192)**2<=576: #Exit button
             self.st=0
-        elif self.st==2 and abs(x-self.w+192)<=24 and self.h-168>=y>=168: #Fuzziness slider
-            self.fuzz=min(1,max(0,1-(y-192)/(self.h-384)))
-            self.adjfuzz=True
-            self.updres=True
-        elif self.st==2 and modifiers == arcade.key.MOD_SHIFT: #Developer's search bar
-            self.searchst = 1-self.searchst
-        elif self.st==2 and self.w/2-(self.h-432)/2<=x<=self.w/2+(self.h-432)/2 and 216<=y<=self.h-216: #Selecting menu items
-            gx=np.floor((6*x-3*self.w+3*self.h-1296)/(self.h-432))
-            gy=5-np.floor((6*y-1296)/(self.h-432))
-            i=int(gx+gy*6+self.searchpg*6)
-            if i<len(self.searchres):
-                self.inv[self.invslot][0]=64
-                self.inv[self.invslot][1]=self.searchres[i]
-        elif self.modesw==0 and (x-self.w+36)**2+(y-self.h+36)**2<=576: #Mode switch button
-            self.modesw=1
-        elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+36)**2<=576: #Normal
-            self.modesw=0
-            self.mode=0
-        elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+84)**2<=576: #Creative
-            self.modesw=0
-            self.mode=1
-        elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+132)**2<=576: #Xray
-            self.modesw=0
-            self.mode=2
-        elif (x-36)**2+(y-self.h+36)**2<=576: #Inventory
-            self.st=1
-        elif (x-36)**2+(y-self.h+348)**2<=576 and self.mode>0: #Search bar
-            self.st=2
-        elif (x-36)**2+(y-self.h+108)**2<=576: #Manual
-            self.st=3
-        elif self.st==3:
-            dat=Terrainer.pages[self.pg]
-            rows=3+len(dat[1])+np.ceil(len(dat[2])/64)
-            size=min((self.h-384)/rows/16,(self.w-384)/64/12)
-            row=np.floor((self.h-192-y)/size/16)-2
-            if 0<=row<len(dat[1]):
-                if dat[1][int(row)][1] in self.unlocked:
-                    self.pg=dat[1][int(row)][1]
-        elif (x-36)**2+(y-self.h+256)**2<=576: #Saving
-            i=input("save/load/new? ")
-            if i=="save":
-                s=f"<CODE>v1〄{self.pos[0]:-.2f}。{self.pos[1]:-.2f}。{self.mode}。{self.p}。{self.chs}。{self.z}。{self.n}〃{"。".join([Terrainer.pages[i][3] for i in self.unlocked])}〃"
-                rlist=[",".join([Terrainer.craftRecp[i][j][4] for j in self.recip[i]]) for i in self.recip.keys()]
-                s+="。".join([i for i in rlist if i])+"〃"
-                s+="。".join([f"{i[0]:-.2f}、{i[1]}" for i in self.inv])+"〃"
-                s+=f"{self.mqty}。{self.mthing}〄"
-                s+="〃".join([f"{c[0]}。{c[1]}" for c in self.ch])+"〄"
-                world="〃".join([f"{i[0]}。{i[1]}。{j[1]}。{convert64(int(j[0]*1000))}" for i,j in self.grid.items()])
-                s+=world+"〄</CODE>"
-                path=input("Where do you want to cram the universe? ")
-                f = open(path+".txt",mode="a")
-                f.write(s)
-                print(f"We managed to store the universe at {path}")
-            if i=="load":
-                path=input("Where is your compacted universe? ")
-                try:
-                    f = open(path+".txt","r")
-                except FileNotFoundError:
-                    print("Sorry, that file doesn't exist")
-                else:
-                    s = f.read()
-                    i0 = s.find("<CODE>")+6
-                    if i0!=-1:
-                        i1 = s.find("</CODE>",i0)
-                        if i1!=-1:
-                            s=s[i0:i1]
-                            l0=s.split("〄")
-                            if l0[0]=="v1":
-                                basic0=l0[1].split("〃")
-                                consts=basic0[0].split("。")
-                                self.pos=(float(consts[0]),float(consts[1]))
-                                self.mode=int(consts[2])
-                                self.p=int(consts[3])
-                                self.chs=int(consts[4])
-                                self.z=float(consts[5])
-                                self.n=ast.literal_eval(consts[6])
-                                pages=basic0[1].split("。")
-                                self.unlocked=[Terrainer.pitn[i] for i in pages]
-                                recs=basic0[2].split("。")
-                                for i in Terrainer.craftRecp.keys():
-                                    self.recip[i]=[]
-                                for i in recs:
-                                    if i!="":
-                                        a,b = Terrainer.ritn[i]
-                                        self.recip[a].append(b)
-                                invlist=basic0[3].split("。")
-                                self.inv=[]
-                                for i in invlist:
-                                    a=i.split("、")
-                                    self.inv.append([float(a[0]),a[1]])
-                                istore=basic0[4].split("。")
-                                self.mqty=float(istore[0])
-                                self.mthing=istore[1]
-                                chunks=l0[2].split("〃")
-                                self.ch=[]
-                                for i in chunks:
-                                    a=i.split("。")
-                                    self.ch.append(int(i[0]),int(i[1]))
-                                self.sch=self.ch.copy()
-                                world=l0[3].split("〃")
-                                self.grid=dict()
-                                self.lines=dict()
-                                for i in world:
-                                    a=i.split("。")
-                                    self.grid[int(a[0]),int(a[1])]=(devert64(a[3])/1000,a[2])
+        if self.st!=4 and not self.scing:
+            if self.st==2 and abs(x-self.w+192)<=24 and self.h-168>=y>=168: #Fuzziness slider
+                self.fuzz=min(1,max(0,1-(y-192)/(self.h-384)))
+                self.adjfuzz=True
+                self.updres=True
+            elif self.st==2 and modifiers == arcade.key.MOD_SHIFT: #Developer's search bar
+                self.searchst = 1-self.searchst
+            elif self.st==2 and self.w/2-(self.h-432)/2<=x<=self.w/2+(self.h-432)/2 and 216<=y<=self.h-216: #Selecting menu items
+                gx=np.floor((6*x-3*self.w+3*self.h-1296)/(self.h-432))
+                gy=5-np.floor((6*y-1296)/(self.h-432))
+                i=int(gx+gy*6+self.searchpg*6)
+                if i<len(self.searchres):
+                    self.inv[self.invslot][0]=64
+                    self.inv[self.invslot][1]=self.searchres[i]
+            elif self.modesw==0 and (x-self.w+36)**2+(y-self.h+36)**2<=576: #Mode switch button
+                self.modesw=1
+            elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+36)**2<=576: #Normal
+                self.modesw=0
+                self.mode=0
+            elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+84)**2<=576: #Creative
+                self.modesw=0
+                self.mode=1
+            elif self.modesw==1 and (x-self.w+36)**2+(y-self.h+132)**2<=576: #Xray
+                self.modesw=0
+                self.mode=2
+            elif (x-36)**2+(y-self.h+36)**2<=576: #Inventory
+                self.st=1
+            elif (x-36)**2+(y-self.h+324)**2<=576 and self.mode>0: #Search bar
+                self.st=2
+            elif (x-36)**2+(y-self.h+108)**2<=576: #Manual
+                self.st=3
+            elif self.st==3:
+                dat=Terrainer.pages[self.pg]
+                rows=3+len(dat[1])+np.ceil(len(dat[2])/64)
+                size=min((self.h-384)/rows/16,(self.w-384)/64/12)
+                row=np.floor((self.h-192-y)/size/16)-2
+                if 0<=row<len(dat[1]):
+                    if dat[1][int(row)][1] in self.unlocked:
+                        self.pg=dat[1][int(row)][1]
+            elif (x-36)**2+(y-self.h+252)**2<=576: #Saving
+                i=input("save/load/new? ")
+                if i=="save":
+                    s=f"<CODE>v1〄{self.pos[0]:-.2f}。{self.pos[1]:-.2f}。{self.mode}。{self.p}。{self.chs}。{self.z}。{self.n}。{Terrainer.pages[self.pg][3]}〃{"。".join([Terrainer.pages[i][3] for i in self.unlocked])}〃"
+                    rlist=[",".join([Terrainer.craftRecp[i][j][4] for j in self.recip[i]]) for i in self.recip.keys()]
+                    s+="。".join([i for i in rlist if i])+"〃"
+                    s+="。".join([f"{i[0]:-.2f}、{i[1]}" for i in self.inv])+"〃"
+                    s+=f"{self.mqty}。{self.mthing}〄"
+                    s+="〃".join([f"{c[0]}。{c[1]}" for c in self.ch])+"〄"
+                    world="〃".join([f"{i[0]}。{i[1]}。{j[1]}。{convert64(int(j[0]*1000))}" for i,j in self.grid.items()])
+                    s+=world+"〄</CODE>"
+                    path=input("Where do you want to cram the universe? ")
+                    f = open(path+".txt",mode="a")
+                    f.write(s)
+                    print(f"We managed to store the universe at {path}")
+                if i=="load":
+                    path=input("Where is your compacted universe? ")
+                    try:
+                        f = open(path+".txt","r")
+                    except FileNotFoundError:
+                        print("Sorry, that file doesn't exist")
+                    else:
+                        s = f.read()
+                        i0 = s.find("<CODE>")+6
+                        if i0!=-1:
+                            i1 = s.find("</CODE>",i0)
+                            if i1!=-1:
+                                s=s[i0:i1]
+                                l0=s.split("〄")
+                                if l0[0]=="v1":
+                                    basic0=l0[1].split("〃")
+                                    consts=basic0[0].split("。")
+                                    self.pos=(float(consts[0]),float(consts[1]))
+                                    self.mode=int(consts[2])
+                                    self.p=int(consts[3])
+                                    self.chs=int(consts[4])
+                                    self.z=float(consts[5])
+                                    self.n=ast.literal_eval(consts[6])
+                                    self.pg=Terrainer.pitn[consts[7]]
+                                    pages=basic0[1].split("。")
+                                    self.unlocked=[Terrainer.pitn[i] for i in pages]
+                                    recs=basic0[2].split("。")
+                                    for i in Terrainer.craftRecp.keys():
+                                        self.recip[i]=[]
+                                    for i in recs:
+                                        if i!="":
+                                            a,b = Terrainer.ritn[i]
+                                            self.recip[a].append(b)
+                                    invlist=basic0[3].split("。")
+                                    self.inv=[]
+                                    for i in invlist:
+                                        a=i.split("、")
+                                        self.inv.append([float(a[0]),a[1]])
+                                    istore=basic0[4].split("。")
+                                    self.mqty=float(istore[0])
+                                    self.mthing=istore[1]
+                                    chunks=l0[2].split("〃")
+                                    self.ch=[]
+                                    for i in chunks:
+                                        a=i.split("。")
+                                        self.ch.append(int(i[0]),int(i[1]))
+                                    self.sch=self.ch.copy()
+                                    world=l0[3].split("〃")
+                                    self.grid=dict()
+                                    self.lines=dict()
+                                    for i in world:
+                                        a=i.split("。")
+                                        self.grid[int(a[0]),int(a[1])]=(devert64(a[3])/1000,a[2])
+                            else:
+                                print("Did you use the compacting machine correctly?")
                         else:
                             print("Did you use the compacting machine correctly?")
-                    else:
-                        print("Did you use the compacting machine correctly?")
-            if i=="new":
-                print("So you wish to create a new world to suit your needs...")
-                self.pos=(0,0)
-                self.ch=[]
-                self.grid=dict()
-                self.lines=dict()
-                try:
-                    self.p = min(64,max(4,int(input("Frame size (default 16): "))))
-                except ValueError:
-                    print("That wasn't an integer")
-                try:
-                    self.chs = min(64,max(4,int(input("Chunk size (default 16): "))))
-                except ValueError:
-                    print("That wasn't an integer")
-                try:
-                    self.z = min(64,max(4,int(input("Noise width (default 32): "))))
-                except ValueError:
-                    print("That wasn't an integer")
-                l = input("Seeds (4) (default 4,5,6,7): ").split(",")
-                try:
-                    self.n=[(int(l[0]),int(l[1])),(int(l[2]),int(l[3]))]
-                except ValueError:
-                    print("One of those wasn't an integer")
-                self.on_resize(self.w,self.h)
+                if i=="new":
+                    print("So you wish to create a new world to suit your needs...")
+                    self.pos=(0,0)
+                    self.ch=[]
+                    self.grid=dict()
+                    self.lines=dict()
+                    try:
+                        self.p = min(64,max(4,int(input("Frame size (default 16): "))))
+                    except ValueError:
+                        print("That wasn't an integer")
+                    try:
+                        self.chs = min(64,max(4,int(input("Chunk size (default 16): "))))
+                    except ValueError:
+                        print("That wasn't an integer")
+                    try:
+                        self.z = min(64,max(4,int(input("Noise width (default 32): "))))
+                    except ValueError:
+                        print("That wasn't an integer")
+                    l = input("Seeds (4) (default 4,5,6,7): ").split(",")
+                    try:
+                        self.n=[(int(l[0]),int(l[1])),(int(l[2]),int(l[3]))]
+                    except ValueError:
+                        print("One of those wasn't an integer")
+                    self.on_resize(self.w,self.h)
+            elif (x-36)**2+(y-self.h+180)**2<=576:
+                self.scing=1
+        elif self.scing==1:
+            self.scing=0
+            if self.bw<=x<=self.w-self.bw and self.bh<=y<=self.h-self.bh:
+                if self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][0]==1:
+                    if self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][1] in Terrainer.craftUI.keys():
+                        self.ctable=self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][1]
+                        self.st=4
+                        ui=Terrainer.craftUI[self.ctable]
+                        self.cstate=([("GRASS",0) for _ in ui[1]],[("GRASS",0) for _ in ui[2]])
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
