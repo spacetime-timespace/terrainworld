@@ -225,55 +225,56 @@ class Terrainer(arcade.Window):
         "Main" : [
             "Main",
             [("[Movement]","Move"),("[Inventory]","Inv"),("[Items]","Item"),("[Modes]","Mode"),("[Mining & placing]","Edit"),("[Save]","Save")],
-            "Hello, creation. I live in a world quite different from yours. When I occasionally get the time, I might be able to write some tips for you "
+            ("Hello, creation. I live in a world quite different from yours. When I occasionally get the time, I might be able to write some tips for you "
             "or add other stuff to your world. However, had you not found this menu, that would all be for nothing. Click on one of the buttons above "
-            "to learn more about your world.",
+            "to learn more about your world."),
             "0"
         ],
         "Inv" : [
             "Inventory",
             [("[Back]","Main")],
-            "The inventory slots take up the first row, namely 1234567890-=. If you want to move your stuff around, Enter picks up and drops your stuff. "
+            ("The inventory slots take up the first row, namely 1234567890-=. If you want to move your stuff around, Enter picks up and drops your stuff. "
             "If you only want to pick up or drop half, use Shift+Enter. The Z button is a slow delete and the X button is instant deletion. Click the "
-            "diamond icon for me to do a detailed inventory inspection on you.",
+            "diamond icon for me to do a detailed inventory inspection on you."),
             "1"
         ],
         "Item" : [
             "Items",
             [("[Back]","Main")],
-            "Items are very important in this world. They can be used to build or craft stuff (once I have time to add that to your world). There are "
+            ("Items are very important in this world. They can be used to build or craft stuff (once I have time to add that to your world). There are "
             "currently three items. Dirt, Grass, and Stone. In creative or x-ray modes, you can use the search icon to search for the items you want "
-            "and drag the slider to set how much error correction you can tolerate.",
+            "and drag the slider to set how much error correction you can tolerate."),
             "2"
         ],
         "Mode" : [
             "Modes",
             [("[Back]","Main")],
-            "There are three modes you can access by clicking the top-right button. N stands for the normal mode. C stands for creative, which gives you " 
-            "access to the search bar. X stands for x-ray, which allows you to bypass physics.",
+            ("There are three modes you can access by clicking the top-right button. N stands for the normal mode. C stands for creative, which gives you " 
+            "access to the search bar. X stands for x-ray, which allows you to bypass physics."),
             "3"
         ],
         "Edit" : [
             "Mining & Placing",
             [("[Back]","Main")],
-            "The world is pretty boring when you have nothing. Guess what? I gave you the ability to change the world you live in! You can click somewhere to gather that resource, also this uses up the land."
+            ("The world is pretty boring when you have nothing. Guess what? I gave you the ability to change the world you live in! You can click somewhere to gather that resource, also this uses up the land."
             "You can also place down some resources by shift-clicking on where you want to place them, although you can only place it on an empty slot or"
-            "pile it on top of more of that thing.",
+            "pile it on top of more of that thing."),
             "4"
         ],
         "Save" : [
             "Save",
             [("[Back]","Main")],
-            "Inspired by your curiosity, I tried to see if I could make you and your world live longer. I tried cramming all the data in a file. The experiment proved successful, so now you can click that save button to cram the world into a file "
+            ("Inspired by your curiosity, I tried to see if I could make you and your world live longer. I tried cramming all the data in a file. The experiment proved successful, so now you can click that save button to cram the world into a file "
             "It should start with <CODE> and end with </CODE>. (all caps) I had to run my hydraulic press for it to fit, so it might look weird. And once you have one version of your world, you can run it again and again"
-            "Also, you now can make a world to suit your needs. Just remember: the world might change, but your knowledge doesn't",
+            "Also, you now can make a world to suit your needs. Just remember: the world might change, but your knowledge doesn't"),
             "5"
         ],
         "End" : [
             "End",
             [],
-            "Written words are a message to the future. The person reading it is always further ahead in time than the person writing it. I don't know what date you are reading these words, where you are, or what you're trying to do."
-            "But wherever you are and whatever problems you're trying to solve, I hope that these messages have helped. I am spacetime-timespace on github, and good luck with your future."
+            ("Written words are a message to the future. The person reading it is always further ahead in time than the person writing it. I don't know what date you are reading these words, where you are, or what you're trying to do."
+            "But wherever you are and whatever problems you're trying to solve, I hope that these messages have helped. Keep building, and I will always be there to help you. I am spacetime-timespace on github, and good luck with your future."),
+            "42"
         ],
     }
     pitn=dict()
