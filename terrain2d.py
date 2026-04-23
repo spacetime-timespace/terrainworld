@@ -207,6 +207,9 @@ def reveal_text(shielded_str):
         return b64.b64decode(shielded_str).decode('utf-8')
     except Exception:
         return "Error: Data corrupted in the Hydraulic Press."
+    
+def f(x):
+    return x if x[1] not in Terrainer.transp else (-1,"grass")
 #The game!
 class Terrainer(arcade.Window):
     colors = {"grass":(192,255,128,255),
@@ -223,7 +226,7 @@ class Terrainer(arcade.Window):
     }
     craftRecp = {
         "stone":{
-            ("grass","dirt","grass"):(1,[1,1,1],["grass"],[3],"0")
+            ("grass","dirt","grass"):([0,0,0],[1,1,1],[3],["grass"],"0")
         }
     }
     ritn=dict()
@@ -296,6 +299,7 @@ class Terrainer(arcade.Window):
     for i,j in pages.items():
         pitn[j[3]]=i
     Textures={}
+    transp=["grass"]
     def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[(4,5),(6,7)], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
         self.set_vsync(True)
@@ -308,6 +312,7 @@ class Terrainer(arcade.Window):
         self.sc = None
         self.grid = None
         self.lines = None
+        self.clines = None
         self.bh = None
         self.bw = None
         self.cmouse=[0,0,0]
@@ -341,13 +346,15 @@ class Terrainer(arcade.Window):
         self.pg="Main"
         self.unlocked={"Main","Inv"}
         self.recip={
-            "Stone":[]
+            "stone":[]
         }
         self.sch=[]
         self.scing=0
         self.ctable="NONE"
         self.cstate=[]
         self.cpos=0
+        self.cslot=0
+        self.cclick=0
     def on_resize(self,width,height):
         #Resize handling: re-set width, height
         self.w = width
@@ -359,6 +366,7 @@ class Terrainer(arcade.Window):
         #Sets up grid, segments
         self.grid = dict()
         self.lines = dict()
+        self.clines = dict()
         self.sc = min(self.w,self.h)/self.p
         self.bw = 0 if self.w < self.h else (self.w-self.h)/2
         self.bh = 0 if self.h < self.w else (self.h-self.w)/2
@@ -598,8 +606,8 @@ class Terrainer(arcade.Window):
                     z = arcade.Sprite()
                     z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
                     z.scale = size*2
-                    z.center_x = 192+size*12+24*size*j
-                    z.center_y = self.h-192-size*16
+                    z.center_x = 192+size*3/4*self.s+3/2*self.s*size*j
+                    z.center_y = self.h-192-size*self.s
                     arcade.draw_sprite(z)
             for i in range(len(dat[1])):
                 if dat[1][i][1] in self.unlocked:
@@ -609,8 +617,8 @@ class Terrainer(arcade.Window):
                             z = arcade.Sprite()
                             z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
                             z.scale = size
-                            z.center_x = 192+size*6+12*size*j
-                            z.center_y = self.h-192-size*40-size*i*16
+                            z.center_x = 192+size*3/8*self.s+3/4*self.s*size*j
+                            z.center_y = self.h-192-size*5/2*self.s-size*i*self.s
                             arcade.draw_sprite(z)
             t=dat[2]
             for j in range(len(t)):
@@ -618,10 +626,11 @@ class Terrainer(arcade.Window):
                     z = arcade.Sprite()
                     z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
                     z.scale = size
-                    z.center_x = 192+size*6+12*size*(j%64)
-                    z.center_y = self.h-192-size*56-size*len(dat[1])*16-size*16*(j//64)
+                    z.center_x = 192+size*3/8*self.s+3/4*self.s*size*(j%64)
+                    z.center_y = self.h-192-size*7/2*self.s-size*len(dat[1])*self.s-size*self.s*(j//64)
                     arcade.draw_sprite(z)
         if self.st==4:
+            arcade.draw_circle_filled(192,192,24,(255,128,128,255))
             UIdat=Terrainer.craftUI[self.ctable]
             Recpdat=Terrainer.craftRecp[self.ctable]
             rows,cols=UIdat[0]
@@ -636,14 +645,14 @@ class Terrainer(arcade.Window):
                 z.center_x = bw+i[0]*self.s*size+self.s/2*size
                 z.center_y = bh+i[1]*self.s*size+self.s/2*size
                 arcade.draw_sprite(z)
-                if j[1]>0:
+                if j[0]>0:
                     z = arcade.Sprite()
-                    z.texture = arcade.load_texture(textures+"Tiles/"+j[0]+".png")
+                    z.texture = arcade.load_texture(textures+"Tiles/"+j[1]+".png")
                     z.scale = size/2
                     z.center_x = bw+i[0]*self.s*size+self.s/2*size
                     z.center_y = bh+i[1]*self.s*size+self.s/2*size
                     arcade.draw_sprite(z)
-                    t=f"{j[1]:.1f}"
+                    t=f"{j[0]:.1f}"
                     for j in range(len(t)):
                         x = t[j]
                         z.texture = arcade.load_texture(textures+"Font-white/tile"+x+".png")
@@ -659,14 +668,14 @@ class Terrainer(arcade.Window):
                 z.center_x = bw+i[0]*self.s*size+self.s/2*size
                 z.center_y = bh+i[1]*self.s*size+self.s/2*size
                 arcade.draw_sprite(z)
-                if j[1]>0:
+                if j[0]>0:
                     z = arcade.Sprite()
-                    z.texture = arcade.load_texture(textures+"Tiles/"+j[0]+".png")
+                    z.texture = arcade.load_texture(textures+"Tiles/"+j[1]+".png")
                     z.scale = size/2
                     z.center_x = bw+i[0]*self.s*size+self.s/2*size
                     z.center_y = bh+i[1]*self.s*size+self.s/2*size
                     arcade.draw_sprite(z)
-                    t=f"{j[1]:.1f}"
+                    t=f"{j[0]:.1f}"
                     for j in range(len(t)):
                         x = t[j]
                         z.texture = arcade.load_texture(textures+"Font-white/tile"+x+".png")
@@ -681,6 +690,15 @@ class Terrainer(arcade.Window):
                 z.center_x = bw+i[0]*self.s*size+self.s/2*size
                 z.center_y = bh+i[1]*self.s*size+self.s/2*size
                 arcade.draw_sprite(z)
+            i=(UIdat[1]+UIdat[2])[self.cslot]
+            z = arcade.Sprite()
+            z.texture = arcade.load_texture(textures+"selector.png")
+            z.scale = size/2
+            z.center_x = bw+i[0]*self.s*size-self.s/4*size
+            z.center_y = bh+i[1]*self.s*size+self.s/2*size
+            arcade.draw_sprite(z)
+            if tuple([i[1] for i in self.cstate[0]]) in Recpdat.keys():
+                arcade.draw_circle_filled(192,self.h-192,24,(128,255,128,255))
     def on_update(self,delta):
         self.nx=int(round(self.pos[0]))
         self.ny=int(round(self.pos[1]))
@@ -709,6 +727,10 @@ class Terrainer(arcade.Window):
                                     self.lines[(wx,wy)] = ms(0,(self.grid[(wx,wy)],self.grid[(wx+1,wy)],self.grid[(wx,wy+1)],self.grid[(wx+1,wy+1)]),[wx,wy])
                                 except KeyError:
                                     0
+                                try:
+                                    self.clines[(wx,wy)] = ms(0,(f(self.grid[(wx,wy)]),f(self.grid[(wx+1,wy)]),f(self.grid[(wx,wy+1)]),f(self.grid[(wx+1,wy+1)])),[wx,wy])
+                                except KeyError:
+                                    0
                     if (i,j) in self.sch:
                         for k in range(self.chs):
                             for l in range(self.chs):
@@ -716,6 +738,10 @@ class Terrainer(arcade.Window):
                                 wy=j*self.chs+l
                                 try:
                                     self.lines[(wx,wy)] = ms(0,(self.grid[(wx,wy)],self.grid[(wx+1,wy)],self.grid[(wx,wy+1)],self.grid[(wx+1,wy+1)]),[wx,wy])
+                                except KeyError:
+                                    0
+                                try:
+                                    self.clines[(wx,wy)] = ms(0,(f(self.grid[(wx,wy)]),f(self.grid[(wx+1,wy)]),f(self.grid[(wx,wy+1)]),f(self.grid[(wx+1,wy+1)])),[wx,wy])
                                 except KeyError:
                                     0
                         self.sch.remove((i,j))
@@ -732,7 +758,7 @@ class Terrainer(arcade.Window):
                         collide = []
                         for i in range(-1, 2):
                             for j in range(-1, 2):
-                                for l0 in self.lines[(i+iloc.x,j+iloc.y)][0]:
+                                for l0 in self.clines[(i+iloc.x,j+iloc.y)][0]:
                                     a = Point(l0[0][0], l0[1][0])-iloc
                                     b = Point(l0[0][1], l0[1][1])-iloc
                                     collide.append((a, b))
@@ -786,6 +812,7 @@ class Terrainer(arcade.Window):
                     for (i,j) in [(k-1,l-1),(k,l-1),(k-1,l),(k,l)]:
                         try:
                             self.lines[(i,j)] = ms(0,(self.grid[(i,j)],self.grid[(i+1,j)],self.grid[(i,j+1)],self.grid[(i+1,j+1)]),[i,j])
+                            self.clines[(i,j)] = ms(0,(f(self.grid[(i,j)]),f(self.grid[(i+1,j)]),f(self.grid[(i,j+1)]),f(self.grid[(i+1,j+1)])),[i,j])
                         except KeyError:
                             0
                 except KeyError:
@@ -803,13 +830,36 @@ class Terrainer(arcade.Window):
                 self.updres = 0
         self.vel[0]=("RIGHT" in self.kpress)-("LEFT" in self.kpress)
         self.vel[1]=("UP" in self.kpress)-("DOWN" in self.kpress)
+        if self.cclick==1 and self.st==4 and tuple([i[1] for i in self.cstate[0]]) in Terrainer.craftRecp[self.ctable].keys():
+            recp=Terrainer.craftRecp[self.ctable][tuple([i[1] for i in self.cstate[0]])]
+            if (np.array([i[0] for i in self.cstate[0]])>=np.array(recp[0])).all:
+                a=delta
+                for i,j in zip(self.cstate[0],recp[1]):
+                    if j>0:
+                        a = min(a,i[0]/j)
+                for i,j,k in zip(self.cstate[1],recp[2],recp[3]):
+                    if j>0:
+                        if i[1]==k or i[0]==0:
+                            a = min(a,(64-i[0])/j)
+                for i in range(len(self.cstate[0])):
+                    self.cstate[0][i][0]-=a*recp[1][i]
+                for i in range(len(self.cstate[1])):
+                    self.cstate[1][i][1]=recp[3][i]
+                    self.cstate[1][i][0]+=a*recp[2][i]
+                if tuple([i[1] for i in self.cstate[0]]) not in self.recip[self.ctable]:
+                    self.recip[self.ctable].append(tuple([i[1] for i in self.cstate[0]]))
     def on_mouse_press(self,x,y,buttons,modifiers):
         #Calculating click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
         uy = (y-self.h/2)/self.sc+self.pos[1]
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
         if self.st!=0 and (x-192)**2+(y-192)**2<=576: #Exit button
-            self.st=0
+            if self.st!=4:
+                self.st=0
+            elif (np.array([i[0] for i in self.cstate[0]+self.cstate[1]]) == np.array([0 for _ in self.cstate[0]+self.cstate[1]])).all():
+                self.st=0
+        if (x-192)**2+(y+192-self.h)**2<=576 and self.st==4: #Craft button
+            self.cclick=1
         if self.st!=4 and not self.scing:
             if self.st==2 and abs(x-self.w+192)<=24 and self.h-168>=y>=168: #Fuzziness slider
                 self.fuzz=min(1,max(0,1-(y-192)/(self.h-384)))
@@ -914,6 +964,7 @@ class Terrainer(arcade.Window):
                                     world=l0[3].split("〃")
                                     self.grid=dict()
                                     self.lines=dict()
+                                    self.clines=dict()
                                     for i in world:
                                         a=i.split("。")
                                         self.grid[int(a[0]),int(a[1])]=(devert64(a[3])/1000,a[2])
@@ -927,6 +978,7 @@ class Terrainer(arcade.Window):
                     self.ch=[]
                     self.grid=dict()
                     self.lines=dict()
+                    self.clines=dict()
                     try:
                         self.p = min(64,max(4,int(input("Frame size (default 16): "))))
                     except ValueError:
@@ -955,7 +1007,8 @@ class Terrainer(arcade.Window):
                         self.ctable=self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][1]
                         self.st=4
                         ui=Terrainer.craftUI[self.ctable]
-                        self.cstate=([("GRASS",0) for _ in ui[1]],[("GRASS",0) for _ in ui[2]])
+                        self.cstate=([[0,"grass"] for _ in ui[1]],[[0,"grass"] for _ in ui[2]])
+                        self.cslot=0
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
@@ -968,6 +1021,7 @@ class Terrainer(arcade.Window):
         #Unsetting mouse data
         self.cmouse = [0,0,0]
         self.adjfuzz=False
+        self.cclick=0
     def on_key_press(self,button,modifiers):
         #Checking movement
         if self.st!=2:
@@ -1047,6 +1101,19 @@ class Terrainer(arcade.Window):
                         self.mqty = self.inv[self.invslot][0]
                         self.mthing = self.inv[self.invslot][1]
                         self.inv[self.invslot][0] = 0
+            if button == arcade.key.Q and self.st==4:
+                self.cslot = (self.cslot-1)%(len(Terrainer.craftUI[self.ctable][1])+len(Terrainer.craftUI[self.ctable][2]))
+            if button == arcade.key.E and self.st==4:
+                self.cslot = (self.cslot+1)%(len(Terrainer.craftUI[self.ctable][1])+len(Terrainer.craftUI[self.ctable][2]))
+            if button == arcade.key.TAB and self.st==4:
+                if self.cslot<len(Terrainer.craftUI[self.ctable][1]):
+                    i = self.inv[self.invslot]
+                    self.inv[self.invslot] = self.cstate[0][self.cslot]
+                    self.cstate[0][self.cslot] = i
+                else:
+                    i = self.inv[self.invslot]
+                    self.inv[self.invslot] = self.cstate[1][self.cslot-len(Terrainer.craftUI[self.ctable][1])]
+                    self.cstate[1][self.cslot-len(Terrainer.craftUI[self.ctable][1])] = i
         else:
             #String navigation
             if button == arcade.key.LEFT:
