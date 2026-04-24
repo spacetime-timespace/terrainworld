@@ -226,7 +226,7 @@ class Terrainer(arcade.Window):
     }
     craftRecp = {
         "stone":{
-            ("grass","dirt","grass"):([0,0,0],[1,1,1],[3],["grass"],"0")
+            ("grass","dirt","grass"):([0,0,0],[1,1,1],[3],["grass"],"0","Growing grass")
         }
     }
     ritn=dict()
@@ -355,6 +355,7 @@ class Terrainer(arcade.Window):
         self.cpos=0
         self.cslot=0
         self.cclick=0
+        self.crecp=[None,None]
     def on_resize(self,width,height):
         #Resize handling: re-set width, height
         self.w = width
@@ -699,6 +700,113 @@ class Terrainer(arcade.Window):
             arcade.draw_sprite(z)
             if tuple([i[1] for i in self.cstate[0]]) in Recpdat.keys():
                 arcade.draw_circle_filled(192,self.h-192,24,(128,255,128,255))
+        if self.st==5:
+            arcade.draw_circle_filled(192,192,24,(255,128,128,255))
+            if self.crecp[0]==None:
+                rows=2+len(Terrainer.craftRecp.keys())
+                size=min((self.h-384)/rows/self.s,(self.w-384)/48/self.s)
+                t="Recipe book"
+                for j in range(len(t)):
+                    if t[j] != " ":
+                        z = arcade.Sprite()
+                        z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
+                        z.scale = size*2
+                        z.center_x = 192+size*3/4*self.s+3/2*self.s*size*j
+                        z.center_y = self.h-192-size*self.s
+                        arcade.draw_sprite(z)
+                for i in range(len(Terrainer.craftRecp.keys())):
+                    t="["+list(Terrainer.craftRecp.keys())[i]+"]"
+                    for j in range(len(t)):
+                        if t[j] != " ":
+                            z = arcade.Sprite()
+                            z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
+                            z.scale = size
+                            z.center_x = 192+size*3/8*self.s+3/4*self.s*size*j
+                            z.center_y = self.h-192-size*5/2*self.s-size*i*self.s
+                            arcade.draw_sprite(z)
+            elif self.crecp[1]==None:
+                rows=2+len(Terrainer.craftRecp.keys())
+                size=min((self.h-384)/rows/self.s,(self.w-384)/48/self.s)
+                recps=Terrainer.craftRecp[self.crecp[0]]
+                t=self.crecp[0]
+                for j in range(len(t)):
+                    if t[j] != " ":
+                        z = arcade.Sprite()
+                        z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
+                        z.scale = size*2
+                        z.center_x = 192+size*3/4*self.s+3/2*self.s*size*j
+                        z.center_y = self.h-192-size*self.s
+                        arcade.draw_sprite(z)
+                for i in range(len(recps.keys())):
+                    t="["+recps[list(recps.keys())[i]][5]+"]"
+                    for j in range(len(t)):
+                        if t[j] != " ":
+                            z = arcade.Sprite()
+                            z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
+                            z.scale = size
+                            z.center_x = 192+size*3/8*self.s+3/4*self.s*size*j
+                            z.center_y = self.h-192-size*5/2*self.s-size*i*self.s
+                            arcade.draw_sprite(z)
+            else:
+                UIdat=Terrainer.craftUI[self.crecp[0]]
+                Recpdat=Terrainer.craftRecp[self.crecp[0]]
+                rows,cols=UIdat[0]
+                size=min((self.h-384)/rows/self.s,(self.w-384)/cols/self.s)
+                bw=self.w/2-size*cols*self.s/2
+                bh=self.h/2-size*rows*self.s/2
+                for i,j in zip(UIdat[1],zip([i+j for i,j in zip(Recpdat[self.crecp[1]][1],Recpdat[self.crecp[1]][0])],self.crecp[1])):
+                    z = arcade.Sprite()
+                    z.texture = arcade.load_texture(textures+"itembox.png")
+                    z.scale = size
+                    z.color=(128,255,128)
+                    z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                    z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                    arcade.draw_sprite(z)
+                    if j[0]>0:
+                        z = arcade.Sprite()
+                        z.texture = arcade.load_texture(textures+"Tiles/"+j[1]+".png")
+                        z.scale = size/2
+                        z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                        z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                        arcade.draw_sprite(z)
+                        t=f"{j[0]:.1f}"
+                        for j in range(len(t)):
+                            x = t[j]
+                            z.texture = arcade.load_texture(textures+"Font-white/tile"+x+".png")
+                            z.scale = size/2/len(t)
+                            z.center_x = bw+i[0]*self.s*size+self.s/2*size-size/8*self.s+size/8/len(t)*self.s+j*size/4/len(t)*self.s
+                            z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                            arcade.draw_sprite(z)
+                for i,j in zip(UIdat[2],zip(Recpdat[self.crecp[1]][2],Recpdat[self.crecp[1]][3])):
+                    z = arcade.Sprite()
+                    z.texture = arcade.load_texture(textures+"itembox.png")
+                    z.scale = size
+                    z.color=(128,128,255)
+                    z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                    z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                    arcade.draw_sprite(z)
+                    if j[0]>0:
+                        z = arcade.Sprite()
+                        z.texture = arcade.load_texture(textures+"Tiles/"+j[1]+".png")
+                        z.scale = size/2
+                        z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                        z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                        arcade.draw_sprite(z)
+                        t=f"{j[0]:.1f}"
+                        for j in range(len(t)):
+                            x = t[j]
+                            z.texture = arcade.load_texture(textures+"Font-white/tile"+x+".png")
+                            z.scale = size/2/len(t)
+                            z.center_x = bw+i[0]*self.s*size+self.s/2*size-size/8*self.s+size/8/len(t)*self.s+j*size/4/len(t)*self.s
+                            z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                            arcade.draw_sprite(z)
+                for i in UIdat[3]:
+                    z = arcade.Sprite()
+                    z.texture = arcade.load_texture(textures+"Background/"+i[2]+".png")
+                    z.scale = size
+                    z.center_x = bw+i[0]*self.s*size+self.s/2*size
+                    z.center_y = bh+i[1]*self.s*size+self.s/2*size
+                    arcade.draw_sprite(z)
     def on_update(self,delta):
         self.nx=int(round(self.pos[0]))
         self.ny=int(round(self.pos[1]))
@@ -891,14 +999,28 @@ class Terrainer(arcade.Window):
                 self.st=2
             elif (x-36)**2+(y-self.h+108)**2<=576: #Manual
                 self.st=3
-            elif self.st==3:
+            elif self.st==3: #Manual Link
                 dat=Terrainer.pages[self.pg]
                 rows=3+len(dat[1])+np.ceil(len(dat[2])/64)
-                size=min((self.h-384)/rows/16,(self.w-384)/64/12)
-                row=np.floor((self.h-192-y)/size/16)-2
+                size=min((self.h-384)/rows/self.s,(self.w-384)/48/self.s)
+                row=int(np.floor((self.h-192-y)/size/self.s)-2)
                 if 0<=row<len(dat[1]):
                     if dat[1][int(row)][1] in self.unlocked:
                         self.pg=dat[1][int(row)][1]
+            elif self.st==5 and self.crecp[0]==None: #Book Link
+                rows=2+len(Terrainer.craftRecp.keys())
+                size=min((self.h-384)/rows/self.s,(self.w-384)/48/self.s)
+                row=int(np.floor((self.h-192-y)/size/self.s)-2)
+                if 0<=row<len(Terrainer.craftRecp.keys()):
+                    self.crecp=(list(Terrainer.craftRecp.keys())[row],None)
+            elif self.st==5 and self.crecp[1]==None: #Book Link 2
+                recps=Terrainer.craftRecp[self.crecp[0]]
+                rows=2+len(recps.keys())
+                size=min((self.h-384)/rows/self.s,(self.w-384)/48/self.s)
+                row=int(np.floor((self.h-192-y)/size/self.s)-2)
+                if 0<=row<len(recps.keys()):
+                    if list(recps.keys())[row] in self.recip[self.crecp[0]]:
+                        self.crecp=(self.crecp[0],list(recps.keys())[row])
             elif (x-36)**2+(y-self.h+252)**2<=576: #Saving
                 i=input("save/load/new? ")
                 if i=="save":
@@ -908,7 +1030,7 @@ class Terrainer(arcade.Window):
                     s+="。".join([f"{i[0]:-.2f}、{i[1]}" for i in self.inv])+"〃"
                     s+=f"{self.mqty}。{self.mthing}〄"
                     s+="〃".join([f"{c[0]}。{c[1]}" for c in self.ch])+"〄"
-                    world="〃".join([f"{i[0]}。{i[1]}。{j[1]}。{convert64(int(j[0]*1000))}" for i,j in self.grid.items()])
+                    world="〃".join([f"{convert64(i[0])}。{convert64(i[1])}。{Terrainer.names.index(j[1])}。{"+" if j[0] == 1.0 else "-" if j[0] == -1.0 else convert64(int(j[0]*1000))}" for i,j in self.grid.items()])
                     s+=world+"〄</CODE>"
                     path=input("Where do you want to cram the universe? ")
                     f = open(path+".txt",mode="a")
@@ -967,7 +1089,8 @@ class Terrainer(arcade.Window):
                                     self.clines=dict()
                                     for i in world:
                                         a=i.split("。")
-                                        self.grid[int(a[0]),int(a[1])]=(devert64(a[3])/1000,a[2])
+                                        self.grid[int(devert64(a[0])),int(devert64(a[1]))]=(1.0 if a[3]=="+" else -1.0 if a[3]=="-" else devert64(a[3])/1000,Terrainer.names[a[2]])
+                                    self.on_resize(self.w,self.h)
                             else:
                                 print("Did you use the compacting machine correctly?")
                         else:
@@ -1009,6 +1132,10 @@ class Terrainer(arcade.Window):
                         ui=Terrainer.craftUI[self.ctable]
                         self.cstate=([[0,"grass"] for _ in ui[1]],[[0,"grass"] for _ in ui[2]])
                         self.cslot=0
+            elif (x-36)**2+(y-self.h+108)**2<=576:
+                self.scing=0
+                self.st=5
+                self.crecp=(None,None)
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
