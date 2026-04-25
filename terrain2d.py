@@ -234,50 +234,70 @@ class Terrainer(arcade.Window):
     pages = {
         "Main" : [
             "Main",
-            [("[Movement]","Move"),("[Inventory]","Inv"),("[Items]","Item"),("[Modes]","Mode"),("[Mining & placing]","Edit"),("[Save]","Save")],
+            [("[Menu]","Menu"),("[Mechanics]","Mech"),("[Hints]","Hint")],
             ("Hello, creation. I live in a world quite different from yours. When I occasionally get the time, I might be able to write some tips for you "
             "or add other stuff to your world. However, had you not found this menu, that would all be for nothing. Click on one of the buttons above "
             "to learn more about your world."),
             "0"
         ],
+        "Menu" : [
+            "Menu",
+            [("[Back]","Main"),("[Inventory]","Inv"),("[Manual]","Book"),("[Crafting]","Craft"),("[Saving]","Save"),("[Search]","Search"),("[Recipe Book]","Recip")],
+            ("There is a menu on the top-left section with four icons on normal mode and another that appears on creative and x-ray modes."),
+            "1"
+        ],
+        "Mech" : [
+            "Mechanics",
+            [("[Back]","Main"),("[Items]","Item"),("[Modes]","Mode"),("[Mining & Placing]","Edit")],
+            ("Here, you can learn about the different mechanics of the book."),
+            "2"
+        ],
+        "Book" : [
+            "Manual",
+            [("[Back]","Menu")],
+            ("What's the point of reading a book about the book that you are reading? Anyways, more parts of the book unlock as you progress. For example, "
+             "trying out your inventory gives you access to the mining and placing page. If it looks like there are gaps, that's because you have to progress "
+             "more. If a page isn't unlocked yet, links to it will not show, leaving empty gaps. You should check periodically for progress."),
+            "3"
+        ],
         "Inv" : [
             "Inventory",
-            [("[Back]","Main")],
+            [("[Back]","Menu")],
             ("The inventory slots take up the first row, namely 1234567890-=. If you want to move your stuff around, Enter picks up and drops your stuff. "
             "If you only want to pick up or drop half, use Shift+Enter. The Z button is a slow delete and the X button is instant deletion. Click the "
             "diamond icon for me to do a detailed inventory inspection on you."),
-            "1"
+            "4"
         ],
         "Item" : [
             "Items",
-            [("[Back]","Main")],
+            [("[Back]","Mech")],
             ("Items are very important in this world. They can be used to build or craft stuff (once I have time to add that to your world). There are "
             "currently three items. Dirt, Grass, and Stone. In creative or x-ray modes, you can use the search icon to search for the items you want "
             "and drag the slider to set how much error correction you can tolerate."),
-            "2"
+            "5"
         ],
         "Mode" : [
             "Modes",
-            [("[Back]","Main")],
+            [("[Back]","Mech")],
             ("There are three modes you can access by clicking the top-right button. N stands for the normal mode. C stands for creative, which gives you " 
             "access to the search bar. X stands for x-ray, which allows you to bypass physics."),
-            "3"
+            "6"
         ],
         "Edit" : [
             "Mining & Placing",
-            [("[Back]","Main")],
+            [("[Back]","Mech")],
             ("The world is pretty boring when you have nothing. Guess what? I gave you the ability to change the world you live in! You can click somewhere to gather that resource, also this uses up the land. "
             "You can also place down some resources by shift-clicking on where you want to place them, although you can only place it on an empty slot or "
             "pile it on top of more of that thing."),
-            "4"
+            "7"
         ],
         "Save" : [
             "Save",
-            [("[Back]","Main")],
+            [("[Back]","Menu")],
             ("Inspired by your curiosity, I tried to see if I could make you and your world live longer. I tried cramming all the data in a file. The experiment proved successful, so now you can click that save button to cram the world into a file "
             "It should start with <CODE> and end with </CODE>. (all caps) I had to run my hydraulic press for it to fit, so it might look weird. And once you have one version of your world, you can run it again and again "
             "Also, you now can make a world to suit your needs. Just remember: the world might change, but your knowledge doesn't"),
-            "5"
+            "8"
         ],
         "End" : [
             "End",
@@ -342,7 +362,7 @@ class Terrainer(arcade.Window):
         self.modesw=False
         self.kpress=[]
         self.pg="Main"
-        self.unlocked={"Main","Inv"}
+        self.unlocked={"Main","Inv","Menu","Mech"}
         self.recip={
             "stone":[]
         }
@@ -1008,6 +1028,7 @@ class Terrainer(arcade.Window):
                 if 0<=row<len(dat[1]):
                     if dat[1][int(row)][1] in self.unlocked:
                         self.pg=dat[1][int(row)][1]
+                self.unlocked.add("Book")
             elif self.st==5 and self.crecp[0]==None: #Book Link
                 rows=2+len(Terrainer.craftRecp.keys())
                 size=min((self.h-384)/rows/self.s,(self.w-384)/48/self.s)
