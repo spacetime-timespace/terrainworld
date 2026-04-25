@@ -109,31 +109,31 @@ def push_distance(p,ri,l0,l1):
     
 #marching squares on four verticies
 def ms(thres,v,offset):
-    vces = [i[0] for i in v]
+    vces = [float(i[0]) for i in v]
     k = (0 if vces[0] < thres else 1, 0 if vces[1] < thres else 1, 0 if vces[2] < thres else 1, 0 if vces[3] < thres else 1)
     edges = msdict[k][0]
     try:
-        c1 = (thres-vces[0])/(vces[2]-vces[0])
+        c1 = max(0,min(1,(thres-vces[0])/(vces[2]-vces[0])))
     except ZeroDivisionError:
         c1 = 0
     try:
-        c2 = (thres-vces[1])/(vces[3]-vces[1])
+        c2 = max(0,min(1,(thres-vces[1])/(vces[3]-vces[1])))
     except ZeroDivisionError:
         c2 = 0
     try:
-        c3 = (thres-vces[0])/(vces[1]-vces[0])
+        c3 = max(0,min(1,(thres-vces[0])/(vces[1]-vces[0])))
     except ZeroDivisionError:
         c3 = 0
     try:
-        c4 = (thres-vces[2])/(vces[3]-vces[2])
+        c4 = max(0,min(1,(thres-vces[2])/(vces[3]-vces[2])))
     except ZeroDivisionError:
         c4 = 0
     d1 = c2 - c1
     d2 = c4 - c3
-    try:
-        t = (c1 * d2 + c3) / (1 - d1 * d2)
-    except ZeroDivisionError:
-        t = 0
+    if d1*d2<0.99:
+        t = max(0,min(1,(c1 * d2 + c3) / (1 - d1 * d2)))
+    else:
+        t=0
     es = [(offset[0],offset[1]+c1),(offset[0]+1,offset[1]+c2),
             (offset[0]+c3,offset[1]),(offset[0]+c4,offset[1]+1),
             (offset[0]+t,offset[1]+c1*(1-t)+c2*t)]
@@ -158,7 +158,8 @@ GREEN=(64,255,0,255)
 GRAY_GREEN=(128,192,64,255)
 LIGHT_GREEN=(192,255,128,255)
 DARK_GREEN=(64,128,0,255)
-BROWN=(128,96,0,255)
+BROWN=(128,80,0,255)
+DARK_BROWN=(64,40,0,255)
 LIGHT_BROWN=(192,160,0,255)
 TAN=(192,160,128,255)
 BLACK=(0,0,0,255)
@@ -169,7 +170,12 @@ WHITE=(255,255,255,255)
 
 #Loading a terrain value, will get more complicated
 def load_grid(x,y,w,noise,debug=True):
-    return [min(1,max(-1,noise[0]((x/w,y/w),debug=debug)*5)),"grass" if noise[1]((x/w/3,y/w/3),debug=debug) <= -0.25 else ("dirt" if noise[1]((x/w/3,y/w/3),debug=debug) <= 0.25 else "stone"),dict()]
+    v = min(1,max(-1,noise[0]((x/w,y/w),debug=debug)*10-5))
+    o = "grass" if noise[1]((x/w/3,y/w/3),debug=debug) <= -0.25 else ("dirt" if noise[1]((x/w/3,y/w/3),debug=debug) <= 0.25 else "stone")
+    if noise[2]((x,y),debug=debug)+1<(noise[3]((x/w/10,y/w/10),debug=debug)+1)/100:
+        return [1,"seeds",dict()]
+    else:
+        return [v,o,dict()]
 
 base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
@@ -213,14 +219,20 @@ def f(x):
     return x if x[1] not in Terrainer.transp else (-1,"grass")
 #The game!
 class Terrainer(arcade.Window):
-    colors = {"grass":(192,255,128,255),
-              "dirt":(128,80,0,255),
-              "stone":(128,128,128,255)}
+    colors = {"grass":LIGHT_GREEN,
+              "dirt":BROWN,
+              "stone":GRAY,
+              "seeds":DARK_BROWN,
+              "wood":TAN,
+              "leaves":DARK_GREEN}
     names = ["grass","dirt","stone","seeds","wood","leaves"]
     textures = {
         "grass":(LIGHT_GREEN,GREEN,GREEN,DARK_GREEN,GRAY_GREEN,LIGHT_GREEN,LIGHT_GREEN,LIGHT_GREEN),
         "dirt":(BROWN,BROWN,BROWN,LIGHT_BROWN,BROWN,LIGHT_BROWN,LIGHT_BROWN,BROWN),
         "stone":(GRAY,LIGHT_GRAY,WHITE,GRAY,LIGHT_GRAY,GRAY,DARK_GRAY,GRAY),
+        "seeds":(DARK_GREEN,BROWN,LIGHT_BROWN,BROWN,DARK_GREEN,DARK_GREEN,GRAY_GREEN,DARK_GREEN),
+        "wood":(TAN,LIGHT_BROWN,LIGHT_BROWN,TAN,LIGHT_BROWN,BROWN,LIGHT_BROWN,TAN),
+        "leaves":(DARK_GREEN,GRAY_GREEN,GRAY_GREEN,GREEN,DARK_GREEN,DARK_GREEN,GRAY_GREEN,DARK_GREEN)
     }
     craftUI = {
         "stone":[(3,3),[(0,0),(1,0),(2,0)],[(1,2)],[(0,1,"0230"),(1,1,"5534"),(2,1,"2030")]]
@@ -320,8 +332,8 @@ class Terrainer(arcade.Window):
     for i,j in pages.items():
         pitn[j[3]]=i
     Textures={}
-    transp=["grass"]
-    def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[(4,5),(6,7)], MSPEED=16, name="terrainer"):
+    transp=["grass","seeds","leaves"]
+    def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[(4,5),(6,7),(8,9),(10,11)], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
         self.set_vsync(True)
         #Initializing variables...
@@ -411,6 +423,11 @@ class Terrainer(arcade.Window):
             arcade.draw_line(i*self.chs*self.sc-self.pos[0]*self.sc+self.p/2*self.sc+self.bw,self.bh,i*self.chs*self.sc-self.pos[0]*self.sc+self.p/2*self.sc+self.bw,self.bh+self.sc*self.p,WHITE,2)
         for i in range(int((self.pos[1]-self.p/2)//self.chs)+1,int((self.pos[1]+self.p/2)//self.chs)+1):
             arcade.draw_line(self.bw,i*self.chs*self.sc-self.pos[1]*self.sc+self.p/2*self.sc+self.bh,self.bw+self.sc*self.p,i*self.chs*self.sc-self.pos[1]*self.sc+self.p/2*self.sc+self.bh,WHITE,2)
+        #Cell borders
+        for i in range(int(self.pos[0]-self.p/2)+1,int(self.pos[0]+self.p/2)+1):
+            arcade.draw_line(i*self.sc-self.pos[0]*self.sc+self.p/2*self.sc+self.bw,self.bh,i*self.sc-self.pos[0]*self.sc+self.p/2*self.sc+self.bw,self.bh+self.sc*self.p,bkg,1)
+        for i in range(int(self.pos[1]-self.p/2)+1,int(self.pos[1]+self.p/2)+1):
+            arcade.draw_line(self.bw,i*self.sc-self.pos[1]*self.sc+self.p/2*self.sc+self.bh,self.bw+self.sc*self.p,i*self.sc-self.pos[1]*self.sc+self.p/2*self.sc+self.bh,bkg,1)
         #Draws all segments
         for i in range(int(self.pos[0]-self.p/2+1),int(self.pos[0]+self.p/2)):
             for j in range(int(self.pos[1]-self.p/2+1),int(self.pos[1]+self.p/2)):
@@ -875,6 +892,89 @@ class Terrainer(arcade.Window):
                                 except KeyError:
                                     0
                         self.sch.remove((i,j))
+            #Updates
+            for i in range(int(self.pos[0]-self.p/2)+1,int(self.pos[0]+self.p/2)+1):
+                for j in range(int(self.pos[1]-self.p/2)+1,int(self.pos[1]+self.p/2)+1):
+                    if self.grid[(i,j)][1]=="seeds" and self.grid[(i,j)][0]==1:
+                        if self.grid[(i,j+1)][1]=="wood":
+                            if "we" not in self.grid[(i,j+1)][2].keys():
+                                self.grid[(i,j+1)][2]["we"]=0
+                            else:
+                                self.grid[(i,j+1)][2]["we"]=min(1,self.grid[(i,j+1)][2]["we"]+10*delta)
+                            if "wd" not in self.grid[(i,j+1)][2].keys():
+                                self.grid[(i,j+1)][2]["wd"]=0
+                            else:
+                                self.grid[(i,j+1)][2]["wd"]=min(self.grid[(i,j+1)][2]["wd"],0)
+                        elif self.grid[(i,j+1)][0]==-1:
+                            self.grid[(i,j+1)][1]="wood"
+                    elif self.grid[(i,j)][1]=="wood" and "we" in self.grid[(i,j)][2].keys() and "wd" in self.grid[(i,j)][2].keys():
+                        if self.grid[(i,j)][2]["wd"]<5:
+                            h=min(delta,self.grid[(i,j)][2]["we"],1-self.grid[(i,j)][0])
+                            self.grid[(i,j)][2]["we"]-=h
+                            self.grid[(i,j)][0]+=h
+                            for i0,j0 in [(i-1,j-1),(i,j-1),(i-1,j),(i,j)]:
+                                try:
+                                    self.lines[(i0,j0)] = ms(0,(self.grid[(i0,j0)],self.grid[(i0+1,j0)],self.grid[(i0,j0+1)],self.grid[(i0+1,j0+1)]),[i0,j0])
+                                    self.clines[(i0,j0)] = ms(0,(f(self.grid[(i0,j0)]),f(self.grid[(i0+1,j0)]),f(self.grid[(i0,j0+1)]),f(self.grid[(i0+1,j0+1)])),[i0,j0])
+                                except KeyError:
+                                    0
+                            if self.grid[(i,j)][0]==1:
+                                if self.grid[(i,j)][2]["wd"]<4:
+                                    if self.grid[(i,j+1)][1]=="wood":
+                                        if "we" not in self.grid[(i,j+1)][2].keys():
+                                            self.grid[(i,j+1)][2]["we"]=0
+                                        else:
+                                            self.grid[(i,j+1)][2]["we"]=min(1,self.grid[(i,j+1)][2]["we"]+min(10*delta,self.grid[(i,j)][2]["we"]))
+                                        if "wd" not in self.grid[(i,j+1)][2].keys():
+                                            self.grid[(i,j+1)][2]["wd"]=self.grid[(i,j)][2]["wd"]+1
+                                        else:
+                                            self.grid[(i,j+1)][2]["wd"]=min(self.grid[(i,j+1)][2]["wd"],self.grid[(i,j)][2]["wd"]+1)
+                                        self.grid[(i,j)][2]["we"]-=min(10*delta,self.grid[(i,j)][2]["we"])
+                                    elif self.grid[(i,j+1)][0]==-1:
+                                        self.grid[(i,j+1)][1]="wood"
+                                    elif self.grid[(i,j+1)][1]=="leaves":
+                                        self.grid[(i,j+1)][1]="wood"
+                                        self.grid[(i,j+1)][0]=-1
+                                elif self.grid[(i,j)][2]["wd"]==4:
+                                    for k in [(i+1,j),(i,j+1),(i-1,j),(i,j-1)]:
+                                        if self.grid[k][1]=="leaves":
+                                            if "we" not in self.grid[k][2].keys():
+                                                self.grid[k][2]["we"]=0
+                                            else:
+                                                self.grid[k][2]["we"]=min(1,self.grid[k][2]["we"]+min(4*delta,self.grid[(i,j)][2]["we"]/4))
+                                            if "wd" not in self.grid[k][2].keys():
+                                                self.grid[k][2]["wd"]=self.grid[(i,j)][2]["wd"]+1
+                                            else:
+                                                self.grid[k][2]["wd"]=min(self.grid[k][2]["wd"],self.grid[(i,j)][2]["wd"]+1)
+                                        elif self.grid[k][0]==-1:
+                                            self.grid[k][1]="leaves"
+                                    self.grid[(i,j)][2]["we"]-=min(16*delta,self.grid[(i,j)][2]["we"])
+                    elif self.grid[(i,j)][1]=="leaves" and "we" in self.grid[(i,j)][2].keys() and "wd" in self.grid[(i,j)][2].keys():
+                        if self.grid[(i,j)][2]["wd"]<8:
+                            h=min(delta,self.grid[(i,j)][2]["we"],1-self.grid[(i,j)][0])
+                            self.grid[(i,j)][2]["we"]-=h
+                            self.grid[(i,j)][0]+=h
+                            for i0,j0 in [(i-1,j-1),(i,j-1),(i-1,j),(i,j)]:
+                                try:
+                                    self.lines[(i0,j0)] = ms(0,(self.grid[(i0,j0)],self.grid[(i0+1,j0)],self.grid[(i0,j0+1)],self.grid[(i0+1,j0+1)]),[i0,j0])
+                                    self.clines[(i0,j0)] = ms(0,(f(self.grid[(i0,j0)]),f(self.grid[(i0+1,j0)]),f(self.grid[(i0,j0+1)]),f(self.grid[(i0+1,j0+1)])),[i0,j0])
+                                except KeyError:
+                                    0
+                            if self.grid[(i,j)][0]==1:
+                                if self.grid[(i,j)][2]["wd"]<7:
+                                    for k in [(i+1,j),(i,j+1),(i-1,j),(i,j-1)]:
+                                        if self.grid[k][1]=="leaves":
+                                            if "we" not in self.grid[k][2].keys():
+                                                self.grid[k][2]["we"]=0
+                                            else:
+                                                self.grid[k][2]["we"]=min(1,self.grid[k][2]["we"]+min(4*delta,self.grid[(i,j)][2]["we"]/4))
+                                            if "wd" not in self.grid[k][2].keys():
+                                                self.grid[k][2]["wd"]=self.grid[(i,j)][2]["wd"]+1
+                                            else:
+                                                self.grid[k][2]["wd"]=min(self.grid[k][2]["wd"],self.grid[(i,j)][2]["wd"]+1)
+                                        elif self.grid[k][0]==-1:
+                                            self.grid[k][1]="leaves"
+                                    self.grid[(i,j)][2]["we"]-=min(16*delta,self.grid[(i,j)][2]["we"])
             #Colliding
             ploc = Point(float(self.pos[0]), float(self.pos[1]))
             pvel = Point(float(self.vel[0]), float(self.vel[1]))
@@ -932,7 +1032,7 @@ class Terrainer(arcade.Window):
                                         self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
                                         self.inv[i][0] += a - self.grid[(k,l)][0]
                                         break
-                        if self.grid[(k,l)][0]==0:
+                        if self.grid[(k,l)][0]==-1:
                             self.grid[(k,l)][2]==dict()
                     if self.cmouse[2] == 2:
                         if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
@@ -1148,9 +1248,9 @@ class Terrainer(arcade.Window):
                         self.z = min(64,max(4,int(input("Noise width (default 32): "))))
                     except ValueError:
                         print("That wasn't an integer")
-                    l = input("Seeds (4) (default 4,5,6,7): ").split(",")
+                    l = input("Seeds (8) (default 4,5,6,7,8,9,10,11): ").split(",")
                     try:
-                        self.n=[(int(l[0]),int(l[1])),(int(l[2]),int(l[3]))]
+                        self.n=[(int(l[0]),int(l[1])),(int(l[2]),int(l[3])),(int(l[4]),int(l[5])),(int(l[6]),int(l[7]))]
                     except ValueError:
                         print("One of those wasn't an integer")
                     self.on_resize(self.w,self.h)
@@ -1184,6 +1284,8 @@ class Terrainer(arcade.Window):
         self.adjfuzz=False
         self.cclick=0
     def on_key_press(self,button,modifiers):
+        if button == arcade.key.ESCAPE:
+            self.st = 0
         #Checking movement
         if self.st!=2:
             if button == arcade.key.LEFT:
@@ -1199,13 +1301,6 @@ class Terrainer(arcade.Window):
                 self.delt = 1
             if button == arcade.key.X:
                 self.inv[self.invslot][0] = 0
-            #2 - creative, 1 - view inventory, 0 - play
-            if button == arcade.key.C and self.mode>0:
-                self.st = 2
-            if button == arcade.key.V:
-                self.st = 1
-            if button == arcade.key.ESCAPE:
-                self.st = 0
             #Slots
             if button == arcade.key.KEY_1:
                 self.invslot = 0
@@ -1426,8 +1521,7 @@ class Terrainer(arcade.Window):
                 self.searchstr=self.searchstr[:self.strpos]+" "+self.searchstr[self.strpos:]
                 self.strpos+=1
                 self.searchpg=0
-                self.updres=True
-            
+                self.updres=True            
     def on_key_release(self,button,modifiers):
         #Un-moving
         try:
