@@ -130,7 +130,10 @@ def ms(thres,v,offset):
         c4 = 0
     d1 = c2 - c1
     d2 = c4 - c3
-    t = (c1 * d2 + c3) / (1 - d1 * d2)
+    try:
+        t = (c1 * d2 + c3) / (1 - d1 * d2)
+    except ZeroDivisionError:
+        t = 0
     es = [(offset[0],offset[1]+c1),(offset[0]+1,offset[1]+c2),
             (offset[0]+c3,offset[1]),(offset[0]+c4,offset[1]+1),
             (offset[0]+t,offset[1]+c1*(1-t)+c2*t)]
