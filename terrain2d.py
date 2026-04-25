@@ -140,12 +140,6 @@ THRESHOLD = 0
 IMG_SIZE = 1024
 sc = 16
 
-#Default game seeds
-r5 = rng(seed=(4,5))
-s5 = Simplex(2,r5)
-r6 = rng(seed=(6,7))
-s6 = Simplex(2,r6)
-
 '''grid = [[s5([i*sc/IMG_SIZE,j*sc/IMG_SIZE]) for j in range(IMG_SIZE)] for i in range(IMG_SIZE)]
 for i in range(IMG_SIZE-1):
   for j in range(IMG_SIZE-1):
@@ -171,8 +165,8 @@ LIGHT_GRAY=(192,192,192,255)
 WHITE=(255,255,255,255)
 
 #Loading a terrain value, will get more complicated
-def load_grid(x,y,w,noise):
-    return [min(1,max(-1,noise[0]((x/w,y/w))*5)),"grass" if noise[1]((x/w/3,y/w/3)) <= -0.25 else ("dirt" if noise[1]((x/w/3,y/w/3)) <= 0.25 else "stone")]
+def load_grid(x,y,w,noise,debug=True):
+    return [min(1,max(-1,noise[0]((x/w,y/w),debug=debug)*5)),"grass" if noise[1]((x/w/3,y/w/3),debug=debug) <= -0.25 else ("dirt" if noise[1]((x/w/3,y/w/3),debug=debug) <= 0.25 else "stone"),dict()]
 
 base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
@@ -187,19 +181,23 @@ def convert64(value):
     return s
 
 def devert64(string):
-    if string[0]=="-":
-        s=string[1:]
+    if len(string)>0:
+        if string[0]=="-":
+            s=string[1:]
+        else:
+            s=string
     else:
         s=string
     v=0
     for i in s:
         v*=64
         try:
-            v+=list(string).index(i)
+            v+=list(base64).index(i)
         except ValueError:
             v+=0
-    if string[0]=="-":
-        v*=-1
+    if len(string)>0:
+        if string[0]=="-":
+            v*=-1
     return v
 
 def reveal_text(shielded_str):
@@ -215,7 +213,7 @@ class Terrainer(arcade.Window):
     colors = {"grass":(192,255,128,255),
               "dirt":(128,80,0,255),
               "stone":(128,128,128,255)}
-    names = ["grass","dirt","stone"]
+    names = ["grass","dirt","stone","seeds","wood","leaves"]
     textures = {
         "grass":(LIGHT_GREEN,GREEN,GREEN,DARK_GREEN,GRAY_GREEN,LIGHT_GREEN,LIGHT_GREEN,LIGHT_GREEN),
         "dirt":(BROWN,BROWN,BROWN,LIGHT_BROWN,BROWN,LIGHT_BROWN,LIGHT_BROWN,BROWN),
@@ -523,7 +521,7 @@ class Terrainer(arcade.Window):
                 z = arcade.Sprite()
                 z.texture = arcade.load_texture(textures+"itembox.png")
                 z.scale = (self.h-384)/12/self.s
-                z.center_x = 192
+                z.center_x = 250
                 z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                 arcade.draw_sprite(z)
                 if self.inv[i][0] == 0:
@@ -531,7 +529,7 @@ class Terrainer(arcade.Window):
                 z = arcade.Sprite()
                 z.texture = arcade.load_texture(textures+"tiles/"+self.inv[i][1]+".png")
                 z.scale = (self.h-384)/24/self.s
-                z.center_x = 192
+                z.center_x = 240
                 z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                 arcade.draw_sprite(z)
                 t = "{:6} ".format("{:.3f}".format(self.inv[i][0]))
@@ -541,7 +539,7 @@ class Terrainer(arcade.Window):
                         z = arcade.Sprite()
                         z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
                         z.scale = (self.h-384)/24/self.s
-                        z.center_x = 256 + j*(self.h-384)/24
+                        z.center_x = 304 + j*(self.h-384)/24
                         z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                         arcade.draw_sprite(z)
         if self.st == 2:
@@ -596,7 +594,7 @@ class Terrainer(arcade.Window):
                                     z.center_y = self.h/2+(self.h-432)/2-(self.h-432)/24-(self.h-432)/6*j
                                     z.color = (57-57*v,255-45*v,20+235*v,255)
                                     arcade.draw_sprite(z)
-        if self.st==3:
+        if self.st == 3:
             arcade.draw_circle_filled(192,192,24,(255,128,128,255))
             dat=Terrainer.pages[self.pg]
             rows=3+len(dat[1])+np.ceil(len(dat[2])/64)
@@ -630,7 +628,7 @@ class Terrainer(arcade.Window):
                     z.center_x = 192+size*3/8*self.s+3/4*self.s*size*(j%64)
                     z.center_y = self.h-192-size*7/2*self.s-size*len(dat[1])*self.s-size*self.s*(j//64)
                     arcade.draw_sprite(z)
-        if self.st==4:
+        if self.st == 4:
             arcade.draw_circle_filled(192,192,24,(255,128,128,255))
             UIdat=Terrainer.craftUI[self.ctable]
             Recpdat=Terrainer.craftRecp[self.ctable]
@@ -700,7 +698,7 @@ class Terrainer(arcade.Window):
             arcade.draw_sprite(z)
             if tuple([i[1] for i in self.cstate[0]]) in Recpdat.keys():
                 arcade.draw_circle_filled(192,self.h-192,24,(128,255,128,255))
-        if self.st==5:
+        if self.st == 5:
             arcade.draw_circle_filled(192,192,24,(255,128,128,255))
             if self.crecp[0]==None:
                 rows=2+len(Terrainer.craftRecp.keys())
@@ -816,16 +814,17 @@ class Terrainer(arcade.Window):
         if self.st == 0:
             if self.delt:
                 self.inv[self.invslot][0] = max(0,self.inv[self.invslot][0]-self.sp*delta)
-            for i in range(int((self.pos[0]-self.p/2)//self.chs)-1,int((self.pos[0]+self.p/2)//self.chs)+2):
-                for j in range(int((self.pos[1]-self.p/2)//self.chs)-1,int((self.pos[1]+self.p/2)//self.chs)+2):
+            for i in range(int((self.pos[0]-self.p/2)//self.chs),int((self.pos[0]+self.p/2)//self.chs)+2):
+                for j in range(int((self.pos[1]-self.p/2)//self.chs),int((self.pos[1]+self.p/2)//self.chs)+2):
                     if (i,j) not in self.ch:
                         self.ch.append((i,j))
                         #Calculating terrain
+                        print(f"LOADING CHUNK: ({i},{j})")
                         for k in range(self.chs+1):
                             for l in range(self.chs+1):
                                 wx=i*self.chs+k
                                 wy=j*self.chs+l
-                                self.grid[(wx,wy)] = load_grid(wx,wy,self.z,[Simplex(2,rng(i)) for i in self.n])
+                                self.grid[(wx,wy)] = load_grid(wx,wy,self.z,[Simplex(2,rng(i)) for i in self.n],debug=False)
                         #Initializing segments
                         for k in range(self.chs):
                             for l in range(self.chs):
@@ -910,6 +909,8 @@ class Terrainer(arcade.Window):
                                         self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
                                         self.inv[i][0] += a - self.grid[(k,l)][0]
                                         break
+                        if self.grid[(k,l)][0]==0:
+                            self.grid[(k,l)][2]==dict()
                     if self.cmouse[2] == 2:
                         if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
                             a = self.grid[(k,l)][0]
@@ -1030,7 +1031,11 @@ class Terrainer(arcade.Window):
                     s+="。".join([f"{i[0]:-.2f}、{i[1]}" for i in self.inv])+"〃"
                     s+=f"{self.mqty}。{self.mthing}〄"
                     s+="〃".join([f"{c[0]}。{c[1]}" for c in self.ch])+"〄"
-                    world="〃".join([f"{convert64(i[0])}。{convert64(i[1])}。{Terrainer.names.index(j[1])}。{"+" if j[0] == 1.0 else "-" if j[0] == -1.0 else convert64(int(j[0]*1000))}" for i,j in self.grid.items()])
+                    lst=[]
+                    for i,j in self.grid.items():
+                        lst.append(f"{convert64(i[0])}。{convert64(i[1])}。{Terrainer.names.index(j[1])}。{"+" if j[0] == 1.0 else "-" if j[0] == -1.0 else convert64(int(j[0]*1000))}")
+                        lst[-1]=lst[-1]+"".join([f"。{i0}、{convert64(int(j0*1000))}" for i0, j0 in j[2].items()])
+                    world="〃".join(lst)
                     s+=world+"〄</CODE>"
                     path=input("Where do you want to cram the universe? ")
                     f = open(path+".txt",mode="a")
@@ -1081,7 +1086,7 @@ class Terrainer(arcade.Window):
                                     self.ch=[]
                                     for i in chunks:
                                         a=i.split("。")
-                                        self.ch.append(int(i[0]),int(i[1]))
+                                        self.ch.append((int(a[0]),int(a[1])))
                                     self.sch=self.ch.copy()
                                     world=l0[3].split("〃")
                                     self.grid=dict()
@@ -1089,7 +1094,12 @@ class Terrainer(arcade.Window):
                                     self.clines=dict()
                                     for i in world:
                                         a=i.split("。")
-                                        self.grid[int(devert64(a[0])),int(devert64(a[1]))]=(1.0 if a[3]=="+" else -1.0 if a[3]=="-" else devert64(a[3])/1000,Terrainer.names[a[2]])
+                                        c=dict()
+                                        for j in a[4:]:
+                                            b=j.split("、")
+                                            c[b[0]]=devert64(b[1])/1000
+                                        self.grid[(int(devert64(a[0])),int(devert64(a[1])))]=[1.0 if a[3]=="+" else -1.0 if a[3]=="-" else devert64(a[3])/1000,Terrainer.names[int(a[2])],c]
+                                        print((int(devert64(a[0])),int(devert64(a[1]))))
                                     self.on_resize(self.w,self.h)
                             else:
                                 print("Did you use the compacting machine correctly?")

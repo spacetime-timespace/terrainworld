@@ -3,29 +3,26 @@ import numpy as np
 from pathlib import Path
 import shutil
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
-root = r"terrainworld/textures"
-
-Path(r"terrainworld/new-textures").mkdir(parents=True, exist_ok=True)
+root = r"textures"
+newroot = r"new-textures"
+Path(r"new-textures").mkdir(parents=True, exist_ok=True)
 
 def scan(path):
     img = Image.open(root+path)
     tile = np.array(img)
     newtile = np.zeros(shape=(64,64,4),dtype=np.uint8)
-    Path("Font-white"+path).mkdir(parents=True, exist_ok=True)
     for i0 in range(16):
         for j0 in range(16):
             for i1 in range(4):
                 for j1 in range(4):
                     newtile[4*i0+i1,4*j0+j1]=tile[i0,j0]
     x = Image.fromarray(newtile)
-    x.save(root+"-white"+path)
+    x.save(newroot+path)
 
 def scangif(path):
     src_path = root+path
     img = Image.open(src_path)
     width, height = img.size  # (w, h)
-    Path(root+"-white"+path).mkdir(parents=True, exist_ok=True)
-
     for y in range(0, height, 16):
         for x in range(0, width, 16):
             frames = []
@@ -141,7 +138,7 @@ def scangif(path):
 def scandir(path):
     print(path)
     # Check and delete existing parsed directory if it exists
-    parsed_dir = Path(root+"-white"+path)
+    parsed_dir = Path(newroot+path)
     if parsed_dir.exists():
         shutil.rmtree(parsed_dir)
     parsed_dir.mkdir(parents=True, exist_ok=True)

@@ -103,24 +103,25 @@ def generate_unit_vector(dims,r,inp):
     return vec / norm if norm != 0 else np.zeros(dims)
 
 class Simplex:
-  """This class makes a custom simplex noise from an rng (random.default_rng(seed=0))
-  if you load the same chunks in the same order, the result will be the same"""
-  def __init__(self,dims,rng):
-    self.dims = dims
-    self.rng = rng
-    self.data = dict()
-  def __call__(self,inp):
-    a = _simplex(self.dims,self.data,inp)
-    if type(a) == tuple:
-      self.data[a] = generate_unit_vector(self.dims,self.rng,a)
-      print("Loading chunk: "+str(a))
-      return self(inp)
-    else:
-      return a
-  def __str__(self):
-    return str(self.dims)+"d noise generator ("+str(len(self.data.keys()))+" chunks loaded)"
-  def __repr__(self):
-    return str(self.dims)+"d noise generator ("+str(len(self.data.keys()))+" chunks loaded)"
+    """This class makes a custom simplex noise from an rng (random.default_rng(seed=0))
+    if you load the same chunks in the same order, the result will be the same"""
+    def __init__(self,dims,rng):
+        self.dims = dims
+        self.rng = rng
+        self.data = dict()
+    def __call__(self,inp,debug=True):
+        a = _simplex(self.dims,self.data,inp)
+        if type(a) == tuple:
+            self.data[a] = generate_unit_vector(self.dims,self.rng,a)
+            if debug:
+                print("Loading chunk: "+str(a))
+            return self(inp,debug)
+        else:
+            return a
+    def __str__(self):
+        return str(self.dims)+"d noise generator ("+str(len(self.data.keys()))+" chunks loaded)"
+    def __repr__(self):
+        return str(self.dims)+"d noise generator ("+str(len(self.data.keys()))+" chunks loaded)"
   
 def fractal(simplex,decay,scale,iters,inp):
-  return sum([simplex([j*scale**i for j in inp])*decay**i for i in range(iters)])/sum([decay**i for i in range(iters)])
+    return sum([simplex([j*scale**i for j in inp])*decay**i for i in range(iters)])/sum([decay**i for i in range(iters)])
