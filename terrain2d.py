@@ -1092,7 +1092,9 @@ class Terrainer(arcade.Window):
                 self.st=0
         if (x-192)**2+(y+192-self.h)**2<=576 and self.st==4: #Craft button
             self.cclick=1
-        if self.st!=4 and not self.scing:
+        elif (x-36)**2+(y-self.h+180)**2<=576:
+            self.scing=1
+        elif self.st!=4 and not self.scing:
             if self.st==2 and abs(x-self.w+192)<=24 and self.h-168>=y>=168: #Fuzziness slider
                 self.fuzz=min(1,max(0,1-(y-192)/(self.h-384)))
                 self.adjfuzz=True
@@ -1254,11 +1256,13 @@ class Terrainer(arcade.Window):
                     except ValueError:
                         print("One of those wasn't an integer")
                     self.on_resize(self.w,self.h)
-            elif (x-36)**2+(y-self.h+180)**2<=576:
-                self.scing=1
         elif self.scing==1:
             self.scing=0
-            if self.bw<=x<=self.w-self.bw and self.bh<=y<=self.h-self.bh:
+            if (x-36)**2+(y-self.h+108)**2<=576:
+                self.scing=0
+                self.st=5
+                self.crecp=(None,None)
+            elif self.bw<=x<=self.w-self.bw and self.bh<=y<=self.h-self.bh:
                 if self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][0]==1:
                     if self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][1] in Terrainer.craftUI.keys():
                         self.ctable=self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][1]
@@ -1266,10 +1270,6 @@ class Terrainer(arcade.Window):
                         ui=Terrainer.craftUI[self.ctable]
                         self.cstate=([[0,"grass"] for _ in ui[1]],[[0,"grass"] for _ in ui[2]])
                         self.cslot=0
-            elif (x-36)**2+(y-self.h+108)**2<=576:
-                self.scing=0
-                self.st=5
-                self.crecp=(None,None)
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
