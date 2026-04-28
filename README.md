@@ -63,15 +63,15 @@ Users: CrazyCat30, fenl
 When you first boot up this game by running `terrain2d.py`, you will be prompted for a screen size between 4 and 64.
 If you choose 16 (the default), you will see something like this: (Don't worry about your cursor, this game implements a custom one)
 
-![First screen](Terrainer%20Shots/Explainer%200.png)
+![First screen](<Terrainer shots/Explainer 0.png>)
 
 The number on the bottom is your coordinates. See those ultramarine buttons? The one on the right shows your current mode. If you click on it, you will see something like this:
 
-![Second screen](Terrainer%20Shots/Explainer%201.png)
+![Second screen](<Terrainer shots/Explainer 1.png>)
 
 Now, the three letters stand for Normal, Creative, and X-ray. Click on the X button in blue:
 
-![Third screen](Terrainer%20Shots/Explainer%202.png)
+![Third screen](<Terrainer shots/Explainer 2.png>)
 
 There are now five icons on the left of the screen. Search bar is available in all modes except normal. If you play around a bit (move via arrow keys), you will figure out that there is no collision in this mode. In other modes, collision follows invisible boundaries because some tiles are transparent. You can click to mine stuff and shift-click to place it back down. 
 
@@ -89,10 +89,10 @@ shift+enter to only pick up or put down half as much (there will still be half r
 
 Now, after you gather some resources and wander around, you might see something moving. If it grows into something like this:
 
-![Tree screen](Terrainer%20Shots/Explainer%203.png)
+![Tree screen](<Terrainer shots/Explainer 3.png>)
 
 That's a tree! They grow back after you damage them. Now get some resources from it (Hint: to get leaves, you need to whack the leaves with a stone). Now, click on the first icon on the upper-left.
 
-![Inventory screen](Terrainer%20Shots/Explainer%204.png)
+![Inventory screen](<Terrainer shots/Explainer 4.png>)
 
 It gives you a detailed overview of your inventory!
