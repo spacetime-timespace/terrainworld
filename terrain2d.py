@@ -593,7 +593,7 @@ class Terrainer(arcade.Window):
                 z = arcade.Sprite()
                 z.texture = arcade.load_texture(textures+"itembox.png")
                 z.scale = (self.h-384)/12/self.s
-                z.center_x = 250
+                z.center_x = 252
                 z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                 arcade.draw_sprite(z)
                 if self.inv[i][0] == 0:
@@ -601,7 +601,7 @@ class Terrainer(arcade.Window):
                 z = arcade.Sprite()
                 z.texture = arcade.load_texture(textures+"tiles/"+self.inv[i][1]+".png")
                 z.scale = (self.h-384)/24/self.s
-                z.center_x = 240
+                z.center_x = 252
                 z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                 arcade.draw_sprite(z)
                 t = "{:6} ".format("{:.3f}".format(self.inv[i][0]))
@@ -611,7 +611,7 @@ class Terrainer(arcade.Window):
                         z = arcade.Sprite()
                         z.texture = arcade.load_texture(textures+"Font-white/tile"+t[j]+".png")
                         z.scale = (self.h-384)/24/self.s
-                        z.center_x = 304 + j*(self.h-384)/24
+                        z.center_x = 300 + j*(self.h-384)/24
                         z.center_y = self.h/2+(self.h-384)/2-(self.h-384)/24-(self.h-384)/12*i
                         arcade.draw_sprite(z)
         if self.st == 2:
@@ -1316,6 +1316,8 @@ class Terrainer(arcade.Window):
                     self.on_resize(self.w,self.h)
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
+        self.cursor_sprite.center_x = x+24
+        self.cursor_sprite.center_y = y-24
         ux = (x-self.w/2)/self.sc+self.pos[0]
         uy = (y-self.h/2)/self.sc+self.pos[1]
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
