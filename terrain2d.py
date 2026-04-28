@@ -6,6 +6,7 @@ import time
 from PIL import Image
 import ast
 import base64 as b64
+np.seterr(divide='ignore')
 #Levenshtein distance
 ins=0.1
 dels=1.0
@@ -141,6 +142,10 @@ def ms(thres,v,offset):
     return [[[i[0][0],i[1][0]],[i[0][1],i[1][1]]] for i in a],v[msdict[k][1]][1]
 THRESHOLD = 0
 IMG_SIZE = 1024
+
+KEY_DELAY=0.4
+KEY_RATE=0.05
+
 sc = 16
 
 '''grid = [[s5([i*sc/IMG_SIZE,j*sc/IMG_SIZE]) for j in range(IMG_SIZE)] for i in range(IMG_SIZE)]
@@ -177,6 +182,28 @@ def load_grid(x,y,w,noise,debug=True):
     else:
         return [v,o,dict()]
 
+speeds = {
+    "grass": 0.25,
+    "dirt": 0.5,
+    "stone": 1,
+    "seeds": 0.25,
+    "wood": 0.75,
+    "leaves": 0.1,
+}
+
+def edit_speed(b,t,m):
+    try:
+        if b[1]=="leaves" and m==1:
+            if t[1]=="stone":
+                return (speeds[b[1]]*0.5,"leaves",0)
+            else:
+                return (speeds[b[1]],"seeds",0)
+        elif m==1:
+            return (speeds[b[1]],b[1],0)
+        else:
+            return (speeds[t[1]],t[1],0)
+    except KeyError:
+        return (1,b[1],0)
 base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 def convert64(value):
@@ -333,7 +360,7 @@ class Terrainer(arcade.Window):
         pitn[j[3]]=i
     Textures={}
     transp=["grass","seeds","leaves"]
-    def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, SPEED=1, seed=[(4,5),(6,7),(8,9),(10,11)], MSPEED=16, name="terrainer"):
+    def __init__(self,WIDTH=960, HEIGHT=720, FPS=60, PIX = 256, CHUNKSIZE=16, WSIZE = 32, seed=[(4,5),(6,7),(8,9),(10,11)], MSPEED=16, name="terrainer"):
         super().__init__(WIDTH, HEIGHT, "Terrainer", update_rate=1/FPS,resizable=True)
         self.set_vsync(True)
         #Initializing variables...
@@ -349,7 +376,6 @@ class Terrainer(arcade.Window):
         self.bh = None
         self.bw = None
         self.cmouse=[0,0,0]
-        self.sp = SPEED
         self.ch = []
         self.chs = CHUNKSIZE
         self.pos = np.array([0.0,0.0])
@@ -365,6 +391,7 @@ class Terrainer(arcade.Window):
         self.mthing = 0
         self.mqty = 0
         self.delt = 0
+        self.sp = 1
         self.st = 0
         self.searchstr = ""
         self.strpos=0
@@ -389,6 +416,10 @@ class Terrainer(arcade.Window):
         self.cslot=0
         self.cclick=0
         self.crecp=[None,None]
+        self.held=dict()
+        self.sheet = arcade.texture.load_spritesheet("new-textures/cursor.png")
+        self.cursors = self.sheet.get_texture_grid(size=(256,256),columns=1,count=12)
+        self.cursor_sprite = arcade.Sprite(self.cursors[0])
     def on_resize(self,width,height):
         #Resize handling: re-set width, height
         self.w = width
@@ -398,6 +429,7 @@ class Terrainer(arcade.Window):
         self.bh = 0 if self.h < self.w else (self.h-self.w)/2
     def setup(self):
         #Sets up grid, segments
+        self.set_mouse_visible(False)
         self.grid = dict()
         self.lines = dict()
         self.clines = dict()
@@ -845,6 +877,10 @@ class Terrainer(arcade.Window):
                     z.center_x = bw+i[0]*self.s*size+self.s/2*size
                     z.center_y = bh+i[1]*self.s*size+self.s/2*size
                     arcade.draw_sprite(z)
+        #Mouse!
+        self.cursor_sprite.scale=16/self.s
+        self.cursor_sprite.texture = self.cursors[int(np.floor((time.time()%0.36)/0.03))]
+        arcade.draw_sprite(self.cursor_sprite)
     def on_update(self,delta):
         self.nx=int(round(self.pos[0]))
         self.ny=int(round(self.pos[1]))
@@ -1003,52 +1039,53 @@ class Terrainer(arcade.Window):
             #Testing for minability, mining
             if self.cmouse[2]!=0:
                 try:
+                    k = int(np.round(self.cmouse[0]))
+                    l = int(np.round(self.cmouse[1]))
+                    v, o, d = edit_speed(self.grid[(k,l)],self.inv[self.invslot],self.cmouse[2])
                     if "Edit" in self.unlocked:
                         self.unlocked.add("Mode")
                         self.unlocked.add("Save")
-                    k = self.cmouse[0]
-                    l = self.cmouse[1]
                     if self.cmouse[2] == 1:
-                        if self.grid[(k,l)][1] == self.inv[self.invslot][1] and self.cmouse[2] == 1 and self.inv[self.invslot][0]<64:
+                        if o == self.inv[self.invslot][1] and self.cmouse[2] == 1 and self.inv[self.invslot][0]<64:
                             a = self.grid[(k,l)][0]
-                            self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[self.invslot][0])))
+                            self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta/v,64-self.inv[self.invslot][0],np.abs(np.abs(np.divide(self.inv[self.invslot][0],d)))))
                             self.inv[self.invslot][0] += a - self.grid[(k,l)][0]
                         elif self.inv[self.invslot][0] == 0:
                             self.inv[self.invslot][1] = self.grid[(k,l)][1]
                         else:
                             sf=0
                             for i in range(12):
-                                if self.inv[i][1]==self.grid[(k,l)][1] and 0<self.inv[i][0]<64:
+                                if self.inv[i][1]==o and 0<self.inv[i][0]<64:
                                     a = self.grid[(k,l)][0]
-                                    self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
+                                    self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta/v,64-self.inv[i][0],np.abs(np.divide(self.inv[self.invslot][0],d))))
                                     self.inv[i][0] += a - self.grid[(k,l)][0]
                                     sf=1
                                     break
                             if sf==0:
                                 for i in range(12):
                                     if self.inv[i][0]==0:
-                                        self.inv[i][1]=self.grid[(k,l)][1]
+                                        self.inv[i][1]=o
                                         a = self.grid[(k,l)][0]
-                                        self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta*self.sp,min(delta*self.sp,64-self.inv[i][0])))
+                                        self.grid[(k,l)][0] = max(-1, self.grid[(k,l)][0]-min(delta/v,64-self.inv[i][0],np.abs(np.divide(self.inv[self.invslot][0],d))))
                                         self.inv[i][0] += a - self.grid[(k,l)][0]
                                         break
                         if self.grid[(k,l)][0]==-1:
-                            self.grid[(k,l)][2]==dict()
+                            self.grid[(k,l)][2]=dict()
                     if self.cmouse[2] == 2:
-                        if self.grid[(k,l)][1] == self.inv[self.invslot][1]:
+                        if self.grid[(k,l)][1] == o:
                             a = self.grid[(k,l)][0]
-                            self.grid[(k,l)][0] = min(1, self.grid[(k,l)][0]+min(delta*self.sp,self.inv[self.invslot][0]))
+                            self.grid[(k,l)][0] = min(1, self.grid[(k,l)][0]+min(delta/v,self.inv[self.invslot][0]))
                             self.inv[self.invslot][0] -= self.grid[(k,l)][0] - a
                         elif self.grid[(k,l)][0] == -1:
-                            self.grid[(k,l)][1] = self.inv[self.invslot][1]         
+                            self.grid[(k,l)][1] = o
                     for (i,j) in [(k-1,l-1),(k,l-1),(k-1,l),(k,l)]:
-                        try:
-                            self.lines[(i,j)] = ms(0,(self.grid[(i,j)],self.grid[(i+1,j)],self.grid[(i,j+1)],self.grid[(i+1,j+1)]),[i,j])
-                            self.clines[(i,j)] = ms(0,(f(self.grid[(i,j)]),f(self.grid[(i+1,j)]),f(self.grid[(i,j+1)]),f(self.grid[(i+1,j+1)])),[i,j])
-                        except KeyError:
-                            0
+                        self.lines[(i,j)] = ms(0,(self.grid[(i,j)],self.grid[(i+1,j)],self.grid[(i,j+1)],self.grid[(i+1,j+1)]),[i,j])
+                        self.clines[(i,j)] = ms(0,(f(self.grid[(i,j)]),f(self.grid[(i+1,j)]),f(self.grid[(i,j+1)]),f(self.grid[(i+1,j+1)])),[i,j])
                 except KeyError:
                     0
+                except RuntimeWarning:
+                    0
+        #Search updates
         if self.updres:
             self.searchres=[]
             if self.searchstr=="":
@@ -1060,8 +1097,10 @@ class Terrainer(arcade.Window):
                         self.searchres.append(i)
                 self.searchres.sort(key=lambda x: levenshtein(self.searchstr.lower(),x))
                 self.updres = 0
+        #set velocity
         self.vel[0]=("RIGHT" in self.kpress)-("LEFT" in self.kpress)
         self.vel[1]=("UP" in self.kpress)-("DOWN" in self.kpress)
+        #crafting
         if self.cclick==1 and self.st==4 and tuple([i[1] for i in self.cstate[0]]) in Terrainer.craftRecp[self.ctable].keys():
             recp=Terrainer.craftRecp[self.ctable][tuple([i[1] for i in self.cstate[0]])]
             if (np.array([i[0] for i in self.cstate[0]])>=np.array(recp[0])).all:
@@ -1080,12 +1119,17 @@ class Terrainer(arcade.Window):
                     self.cstate[1][i][0]+=a*recp[2][i]
                 if tuple([i[1] for i in self.cstate[0]]) not in self.recip[self.ctable]:
                     self.recip[self.ctable].append(tuple([i[1] for i in self.cstate[0]]))
+        #Key holding
+        for i,j in self.held.items():
+            if j<=time.time():
+                self.on_key_press(i,0,natural=False)
     def on_mouse_press(self,x,y,buttons,modifiers):
         #Calculating click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
         uy = (y-self.h/2)/self.sc+self.pos[1]
         self.cmouse = [round(ux),round(uy),(1 if modifiers == 0 else 2)]
         if self.st!=0 and (x-192)**2+(y-192)**2<=576: #Exit button
+            self.held=dict()
             if self.st!=4:
                 self.st=0
             elif (np.array([i[0] for i in self.cstate[0]+self.cstate[1]]) == np.array([0 for _ in self.cstate[0]+self.cstate[1]])).all():
@@ -1094,6 +1138,20 @@ class Terrainer(arcade.Window):
             self.cclick=1
         elif (x-36)**2+(y-self.h+180)**2<=576:
             self.scing=1
+        elif self.scing==1:
+            self.scing=0
+            if (x-36)**2+(y-self.h+108)**2<=576:
+                self.scing=0
+                self.st=5
+                self.crecp=(None,None)
+            elif self.bw<=x<=self.w-self.bw and self.bh<=y<=self.h-self.bh:
+                if self.grid[(int(np.round((x-self.w/2)/self.sc+self.pos[0])),int(np.round((y-self.h/2)/self.sc+self.pos[1])))][0]>=0.5:
+                    if self.grid[(int(np.round((x-self.w/2)/self.sc+self.pos[0])),int(np.round((y-self.h/2)/self.sc+self.pos[1])))][1] in Terrainer.craftUI.keys():
+                        self.ctable=self.grid[(int(np.round((x-self.w/2)/self.sc+self.pos[0])),int(np.round((y-self.h/2)/self.sc+self.pos[1])))][1]
+                        self.st=4
+                        ui=Terrainer.craftUI[self.ctable]
+                        self.cstate=([[0,"grass"] for _ in ui[1]],[[0,"grass"] for _ in ui[2]])
+                        self.cslot=0
         elif self.st!=4 and not self.scing:
             if self.st==2 and abs(x-self.w+192)<=24 and self.h-168>=y>=168: #Fuzziness slider
                 self.fuzz=min(1,max(0,1-(y-192)/(self.h-384)))
@@ -1256,20 +1314,6 @@ class Terrainer(arcade.Window):
                     except ValueError:
                         print("One of those wasn't an integer")
                     self.on_resize(self.w,self.h)
-        elif self.scing==1:
-            self.scing=0
-            if (x-36)**2+(y-self.h+108)**2<=576:
-                self.scing=0
-                self.st=5
-                self.crecp=(None,None)
-            elif self.bw<=x<=self.w-self.bw and self.bh<=y<=self.h-self.bh:
-                if self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][0]==1:
-                    if self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][1] in Terrainer.craftUI.keys():
-                        self.ctable=self.grid[(int(np.round((x-self.w/2)/self.sc)),int(np.round((y-self.h/2)/self.sc)))][1]
-                        self.st=4
-                        ui=Terrainer.craftUI[self.ctable]
-                        self.cstate=([[0,"grass"] for _ in ui[1]],[[0,"grass"] for _ in ui[2]])
-                        self.cslot=0
     def on_mouse_drag(self,x,y,dx,dy,buttons,modifiers):
         #Re-setting click position
         ux = (x-self.w/2)/self.sc+self.pos[0]
@@ -1283,7 +1327,7 @@ class Terrainer(arcade.Window):
         self.cmouse = [0,0,0]
         self.adjfuzz=False
         self.cclick=0
-    def on_key_press(self,button,modifiers):
+    def on_key_press(self,button,modifiers,natural=True):
         if button == arcade.key.ESCAPE:
             self.st = 0
         #Checking movement
@@ -1379,14 +1423,17 @@ class Terrainer(arcade.Window):
             #Page navigation
             if button == arcade.key.UP:
                 self.searchpg = max(0,self.searchpg-1)
+                self.held[arcade.key.UP]=time.time()+(KEY_DELAY if natural else KEY_RATE)
             if button == arcade.key.DOWN:
                 self.searchpg = min(np.ceil(len(self.searchres)/6)-1,self.searchpg+1)
+                self.held[arcade.key.DOWN]=0+(KEY_DELAY if natural else KEY_RATE)
             #Input
             if button == arcade.key.BACKSPACE and self.strpos > 0:
                 self.searchstr = self.searchstr[:self.strpos-1]+self.searchstr[self.strpos:]
                 self.strpos-=1
                 self.searchpg=0
                 self.updres=True
+                self.held[arcade.key.BACKSPACE]=time.time()+(KEY_DELAY if natural else KEY_RATE)
             if button == arcade.key.A:
                 self.searchstr=self.searchstr[:self.strpos]+"A"+self.searchstr[self.strpos:]
                 self.strpos+=1
@@ -1535,8 +1582,19 @@ class Terrainer(arcade.Window):
                 self.kpress.remove("UP")
             if button == arcade.key.Z:
                 self.delt = 0
+            if button == arcade.key.UP:
+                del self.held[arcade.key.UP]
+            if button == arcade.key.DOWN:
+                del self.held[arcade.key.DOWN]
+            if button == arcade.key.BACKSPACE:
+                del self.held[arcade.key.BACKSPACE]
         except ValueError:
             0
+        except KeyError:
+            0
+    def on_mouse_motion(self,x,y,dx,dy):
+        self.cursor_sprite.center_x = x+24
+        self.cursor_sprite.center_y = y-24
 def main():
     #Setting up game
     try:
@@ -1544,7 +1602,7 @@ def main():
     except ValueError:
         n=64
     n = int(max(1,min(n,256)))
-    window = Terrainer(PIX=n,WSIZE=8,SPEED=4)
+    window = Terrainer(PIX=n,WSIZE=8)
     window.setup()
     arcade.run()
 

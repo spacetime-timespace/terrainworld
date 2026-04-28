@@ -10,9 +10,10 @@ Path(r"new-textures").mkdir(parents=True, exist_ok=True)
 def scan(path):
     img = Image.open(root+path)
     tile = np.array(img)
-    newtile = np.zeros(shape=(64,64,4),dtype=np.uint8)
-    for i0 in range(16):
-        for j0 in range(16):
+    dim = tile.shape
+    newtile = np.zeros(shape=(4*dim[0],4*dim[1],4),dtype=np.uint8)
+    for i0 in range(dim[0]):
+        for j0 in range(dim[1]):
             for i1 in range(4):
                 for j1 in range(4):
                     newtile[4*i0+i1,4*j0+j1]=tile[i0,j0]
